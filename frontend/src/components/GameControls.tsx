@@ -419,6 +419,7 @@ export default function GameControls({
                 <span className="flex-1 truncate text-gray-200">{player.name}</span>
                 <span className="text-gray-500">{terrCount}T</span>
                 <span className="text-gray-500">{totalTroops}A</span>
+                <span className="text-gray-500" title="Cards">{player.cards.length}C</span>
               </div>
             );
           })}

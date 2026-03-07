@@ -11,6 +11,8 @@ function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+const GAME_ID_KEY = 'risk-game-id';
+
 export default function App() {
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [selectedTerritory, setSelectedTerritory] = useState<string | null>(null);
@@ -21,6 +23,7 @@ export default function App() {
   const [attackPending, setAttackPending] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [instructionText, setInstructionText] = useState('');
+  const [loading, setLoading] = useState(true);
   const toastIdRef = useRef(0);
   const api = useGameApi();
 
@@ -32,6 +35,32 @@ export default function App() {
   const removeToast = useCallback((id: number) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
+
+  // Restore game from localStorage on mount
+  useEffect(() => {
+    const savedId = localStorage.getItem(GAME_ID_KEY);
+    if (savedId) {
+      api.getGame(savedId)
+        .then((game) => {
+          setGameState(game);
+          setLoading(false);
+        })
+        .catch(() => {
+          localStorage.removeItem(GAME_ID_KEY);
+          setLoading(false);
+        });
+    } else {
+      setLoading(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist game ID to localStorage
+  useEffect(() => {
+    if (gameState?.id) {
+      localStorage.setItem(GAME_ID_KEY, gameState.id);
+    }
+  }, [gameState?.id]);
 
   const clearSelection = useCallback(() => {
     setSelectedTerritory(null);
@@ -406,6 +435,14 @@ export default function App() {
 
   // === RENDER ===
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#1a1a2e' }}>
+        <div className="w-6 h-6 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   if (!gameState) {
     return <SetupScreen onGameStart={handleGameStart} />;
   }
@@ -464,6 +501,7 @@ export default function App() {
             </div>
             <button
               onClick={() => {
+                localStorage.removeItem(GAME_ID_KEY);
                 setGameState(null);
                 clearSelection();
               }}

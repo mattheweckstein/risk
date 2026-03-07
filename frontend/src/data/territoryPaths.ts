@@ -6,289 +6,370 @@ export interface TerritoryMapData {
 }
 
 export const territoryPaths: TerritoryMapData[] = [
-  // === NORTH AMERICA ===
+  // === NORTH AMERICA === (x 25-360, y 25-330)
+  // Continent shape: wide top (Alaska through Greenland), narrows down to Central America
+  // Shared edges ensure puzzle-piece tiling with 1-2px gaps between territories
+
   {
     id: 'alaska',
-    path: 'M 30 58 C 35 50, 55 44, 75 48 C 90 50, 105 52, 118 58 L 120 62 C 122 70, 118 82, 112 92 C 108 98, 100 106, 88 110 C 75 114, 58 112, 45 106 C 35 100, 28 90, 25 80 C 23 70, 26 62, 30 58 Z',
-    labelX: 72,
+    // Top-left of NA, bulky shape. Shares south-east edge with northwest_territory
+    path: 'M 27 55 L 90 27 L 130 40 L 135 70 L 125 105 L 100 120 L 60 125 L 30 110 L 27 55 Z',
+    labelX: 78,
     labelY: 78,
   },
   {
     id: 'northwest_territory',
-    path: 'M 120 62 C 140 52, 168 45, 200 42 C 225 40, 248 42, 265 50 L 270 55 C 272 62, 268 74, 260 82 C 250 92, 235 98, 215 102 C 195 106, 170 106, 150 102 C 135 98, 125 92, 120 85 L 118 78 C 117 70, 118 65, 120 62 Z',
-    labelX: 188,
-    labelY: 72,
+    // Wide territory across top of NA. Shares west edge with alaska, south edges with alberta/ontario, east edge transitions toward greenland
+    path: 'M 137 40 L 200 28 L 270 30 L 290 50 L 270 80 L 230 100 L 175 110 L 127 107 L 137 70 L 137 40 Z',
+    labelX: 205,
+    labelY: 68,
   },
   {
     id: 'greenland',
-    path: 'M 280 28 C 295 18, 320 12, 348 14 C 368 15, 385 22, 395 34 C 400 42, 398 54, 390 64 C 382 72, 368 78, 350 80 C 332 82, 312 78, 298 72 C 285 66, 275 56, 272 44 C 270 36, 274 30, 280 28 Z',
-    labelX: 335,
-    labelY: 48,
+    // Island territory - separated by water gap from NW territory and quebec. Distinct island shape
+    path: 'M 300 25 L 345 18 L 380 25 L 395 50 L 385 80 L 355 95 L 320 90 L 295 70 L 290 45 L 300 25 Z',
+    labelX: 342,
+    labelY: 55,
   },
   {
     id: 'alberta',
-    path: 'M 112 102 C 130 100, 155 100, 172 102 L 175 108 L 178 130 C 179 145, 178 158, 174 168 L 170 172 C 155 174, 138 174, 122 172 L 108 165 C 102 155, 100 140, 102 125 C 104 115, 108 108, 112 102 Z',
-    labelX: 140,
-    labelY: 138,
+    // Below NW territory on the west side. Shares north edge with NW territory, east edge with ontario, south edge with western_us
+    path: 'M 127 109 L 175 112 L 178 140 L 178 175 L 145 185 L 105 180 L 90 155 L 95 125 L 127 109 Z',
+    labelX: 138,
+    labelY: 148,
   },
   {
     id: 'ontario',
-    path: 'M 178 102 C 200 95, 230 88, 255 82 L 270 55 C 278 58, 286 64, 292 72 L 295 82 C 296 95, 294 110, 288 124 C 282 136, 272 145, 258 152 C 242 158, 222 158, 205 154 L 188 148 C 182 140, 180 128, 178 118 L 178 102 Z',
-    labelX: 235,
-    labelY: 118,
+    // Center of NA. Shares west with alberta, north with NW territory, east with quebec, south with eastern_us/western_us
+    path: 'M 177 112 L 232 102 L 272 82 L 292 95 L 288 130 L 270 160 L 230 175 L 180 177 L 180 140 L 177 112 Z',
+    labelX: 232,
+    labelY: 138,
   },
   {
     id: 'quebec',
-    path: 'M 295 72 C 305 70, 318 72, 330 78 C 340 83, 348 92, 352 104 C 355 115, 352 128, 345 138 C 338 148, 326 154, 312 156 C 300 157, 290 154, 282 148 L 272 138 C 278 125, 286 110, 292 96 L 295 82 L 295 72 Z',
-    labelX: 318,
-    labelY: 112,
+    // East side of NA below greenland. Shares west with ontario, south with eastern_us
+    path: 'M 272 84 L 294 70 L 325 78 L 350 100 L 345 135 L 325 160 L 295 170 L 272 162 L 290 130 L 274 84 Z',
+    labelX: 312,
+    labelY: 120,
   },
   {
     id: 'western_us',
-    path: 'M 102 174 C 120 172, 148 172, 168 174 L 175 178 C 182 188, 188 200, 190 214 C 191 225, 188 236, 180 246 C 172 254, 158 258, 142 260 C 126 261, 112 258, 102 250 C 92 242, 86 230, 84 216 C 82 202, 86 188, 92 180 L 102 174 Z',
-    labelX: 138,
-    labelY: 216,
+    // Below alberta, west of eastern_us. Shares north with alberta, east with eastern_us, south with central_america
+    path: 'M 95 182 L 147 187 L 180 179 L 185 210 L 175 245 L 150 265 L 115 268 L 80 250 L 70 220 L 80 195 L 95 182 Z',
+    labelX: 130,
+    labelY: 225,
   },
   {
     id: 'eastern_us',
-    path: 'M 195 154 C 218 152, 245 152, 265 158 C 278 163, 286 172, 290 185 C 293 198, 290 214, 282 228 C 274 240, 260 250, 242 256 C 225 261, 206 260, 192 254 C 183 248, 180 240, 182 228 C 184 218, 188 208, 190 198 C 191 186, 192 174, 192 164 L 195 154 Z',
-    labelX: 238,
-    labelY: 205,
+    // East of western_us, below ontario/quebec. Shares west with western_us, north with ontario, south-east coast
+    path: 'M 182 179 L 232 177 L 273 164 L 297 172 L 300 200 L 285 235 L 255 260 L 210 270 L 177 247 L 187 210 L 182 179 Z',
+    labelX: 240,
+    labelY: 218,
   },
   {
     id: 'central_america',
-    path: 'M 122 260 C 140 258, 162 258, 180 260 L 188 268 C 194 278, 196 290, 192 302 C 188 312, 180 320, 168 325 C 156 329, 142 328, 132 322 C 122 316, 114 306, 110 294 C 107 282, 108 270, 114 264 L 122 260 Z',
-    labelX: 152,
-    labelY: 292,
+    // Narrow bottom of NA connecting to South America. Shares north with western_us/eastern_us
+    path: 'M 117 270 L 152 267 L 178 249 L 212 272 L 210 295 L 190 318 L 165 328 L 140 320 L 120 300 L 110 280 L 117 270 Z',
+    labelX: 162,
+    labelY: 298,
   },
 
-  // === SOUTH AMERICA ===
+  // === SOUTH AMERICA === (x 130-320, y 330-570)
+  // Classic shape: wide at top (Brazil), narrows to Argentina
+
   {
     id: 'venezuela',
-    path: 'M 168 332 C 185 326, 210 324, 235 328 C 252 331, 265 338, 272 348 C 276 356, 274 365, 266 372 C 256 378, 240 380, 222 378 C 205 376, 188 372, 175 365 C 166 358, 162 350, 164 342 L 168 332 Z',
-    labelX: 218,
-    labelY: 352,
+    // Top of South America, wide. Shares south with peru and brazil
+    path: 'M 145 332 L 195 332 L 250 338 L 290 350 L 280 375 L 245 385 L 205 388 L 165 380 L 140 360 L 145 332 Z',
+    labelX: 215,
+    labelY: 358,
   },
   {
     id: 'peru',
-    path: 'M 162 368 C 175 365, 195 370, 210 378 L 215 385 C 218 400, 214 418, 206 434 C 198 448, 186 458, 174 462 C 162 465, 150 460, 142 450 C 134 438, 130 420, 132 402 C 134 388, 140 376, 150 370 L 162 368 Z',
-    labelX: 175,
-    labelY: 418,
+    // West side of SA. Shares north with venezuela, east with brazil, south with argentina
+    path: 'M 140 362 L 167 382 L 207 390 L 210 420 L 200 450 L 175 468 L 148 460 L 132 430 L 130 395 L 140 362 Z',
+    labelX: 170,
+    labelY: 420,
   },
   {
     id: 'brazil',
-    path: 'M 215 372 C 235 368, 258 370, 278 378 C 296 385, 310 396, 316 412 C 320 425, 318 440, 310 454 C 302 466, 288 475, 272 480 C 255 484, 238 482, 224 474 C 212 466, 204 454, 202 438 C 200 422, 204 405, 210 392 L 215 372 Z',
-    labelX: 262,
-    labelY: 425,
+    // Largest territory in SA - wide bulge. Shares west with venezuela/peru, south with argentina
+    path: 'M 209 390 L 247 387 L 282 377 L 315 390 L 320 425 L 305 460 L 275 478 L 240 482 L 210 470 L 202 452 L 212 420 L 209 390 Z',
+    labelX: 265,
+    labelY: 430,
   },
   {
     id: 'argentina',
-    path: 'M 174 465 C 192 462, 215 468, 234 476 C 250 483, 262 492, 260 506 C 258 520, 248 534, 236 546 C 224 556, 210 564, 198 566 C 188 567, 180 562, 176 552 C 172 540, 170 524, 168 508 C 166 492, 166 478, 170 470 L 174 465 Z',
-    labelX: 215,
-    labelY: 518,
+    // Bottom of SA, narrows to a point. Shares north with peru and brazil
+    path: 'M 150 462 L 177 470 L 212 472 L 242 484 L 277 480 L 265 510 L 245 540 L 220 560 L 195 568 L 175 555 L 162 525 L 155 495 L 150 462 Z',
+    labelX: 210,
+    labelY: 520,
   },
 
-  // === EUROPE ===
+  // === EUROPE === (x 405-680, y 30-260)
+  // Distinctive shape with Scandinavian peninsula, Iberian bump, Italian boot area
+
   {
     id: 'iceland',
-    path: 'M 415 58 C 425 52, 440 50, 455 52 C 465 54, 472 60, 472 68 C 472 76, 465 83, 455 86 C 445 89, 430 88, 420 83 C 412 78, 408 70, 410 64 L 415 58 Z',
+    // Island territory - water gap from everything. Small island northwest of Europe
+    path: 'M 418 42 L 448 35 L 470 42 L 472 60 L 460 75 L 435 78 L 415 68 L 412 52 L 418 42 Z',
     labelX: 442,
-    labelY: 70,
+    labelY: 58,
   },
   {
     id: 'scandinavia',
-    path: 'M 492 40 C 505 34, 525 32, 540 36 C 552 40, 560 50, 562 64 C 564 78, 560 92, 552 104 C 545 114, 534 120, 522 122 C 510 124, 498 120, 490 112 C 484 104, 480 92, 480 78 C 480 64, 484 50, 492 40 Z',
-    labelX: 520,
+    // Top right of Europe, elongated north-south. Shares south with northern_europe, west gap to GB, east with ukraine
+    path: 'M 500 32 L 540 28 L 575 35 L 585 60 L 578 90 L 562 115 L 540 130 L 510 132 L 495 115 L 490 85 L 492 55 L 500 32 Z',
+    labelX: 535,
     labelY: 78,
   },
   {
     id: 'great_britain',
-    path: 'M 428 100 C 438 95, 452 94, 462 100 C 470 105, 472 114, 470 125 C 468 136, 462 146, 452 152 C 442 157, 432 155, 425 148 C 418 140, 416 128, 418 116 C 420 108, 424 103, 428 100 Z',
-    labelX: 445,
-    labelY: 125,
+    // Island territory west of northern europe. Small island shape
+    path: 'M 428 92 L 455 85 L 468 95 L 470 120 L 462 145 L 445 155 L 428 150 L 418 132 L 418 108 L 428 92 Z',
+    labelX: 444,
+    labelY: 120,
   },
   {
     id: 'northern_europe',
-    path: 'M 482 115 C 500 112, 522 114, 538 120 C 548 125, 554 134, 552 146 C 550 158, 542 168, 530 174 C 518 179, 502 180, 490 175 C 480 170, 474 162, 472 150 C 470 138, 474 126, 482 115 Z',
-    labelX: 512,
-    labelY: 148,
+    // Center of Europe. Shares north with scandinavia, east with ukraine, south with western/southern europe
+    path: 'M 485 120 L 512 134 L 542 132 L 570 120 L 582 140 L 575 165 L 555 180 L 520 185 L 490 178 L 478 158 L 478 138 L 485 120 Z',
+    labelX: 525,
+    labelY: 155,
   },
   {
     id: 'western_europe',
-    path: 'M 422 162 C 435 156, 455 155, 470 160 L 478 168 C 482 180, 484 195, 482 210 C 480 222, 474 232, 464 238 C 452 244, 438 244, 428 238 C 418 232, 412 220, 410 206 C 408 192, 412 178, 418 168 L 422 162 Z',
+    // Southwest Europe (Iberia, France). Shares north-east with northern_europe, east with southern_europe
+    path: 'M 410 155 L 440 148 L 478 140 L 480 160 L 492 180 L 488 210 L 475 238 L 450 252 L 425 248 L 410 228 L 408 195 L 410 155 Z',
     labelX: 448,
     labelY: 200,
   },
   {
     id: 'southern_europe',
-    path: 'M 488 175 C 505 170, 526 172, 542 180 C 554 187, 560 198, 560 212 C 560 226, 554 238, 542 248 C 530 256, 514 258, 500 254 C 488 250, 480 240, 478 226 C 476 212, 478 198, 482 188 L 488 175 Z',
-    labelX: 520,
-    labelY: 215,
+    // South-center of Europe (Italy, Balkans). Shares west with western_europe, north with northern_europe, east with ukraine
+    path: 'M 494 182 L 522 187 L 557 182 L 577 167 L 592 180 L 588 210 L 575 238 L 555 255 L 525 260 L 500 252 L 477 240 L 490 212 L 494 182 Z',
+    labelX: 535,
+    labelY: 220,
   },
   {
     id: 'ukraine',
-    path: 'M 555 52 C 575 44, 605 40, 630 42 C 650 44, 665 52, 672 66 C 678 80, 678 98, 674 116 C 670 132, 662 148, 650 162 C 638 174, 622 182, 605 184 C 590 185, 575 180, 565 170 C 556 160, 550 146, 548 130 C 546 114, 548 98, 552 82 C 554 68, 554 58, 555 52 Z',
-    labelX: 612,
+    // Large territory, east of Europe. Shares west with scandinavia/northern_europe/southern_europe, east transitions to Asia
+    path: 'M 577 37 L 620 32 L 665 38 L 678 60 L 675 95 L 668 130 L 655 165 L 635 190 L 610 200 L 590 212 L 594 182 L 584 165 L 578 140 L 584 118 L 577 90 L 580 60 L 577 37 Z',
+    labelX: 628,
     labelY: 115,
   },
 
-  // === AFRICA ===
+  // === AFRICA === (x 395-670, y 255-555)
+  // Classic shield/heart shape - wide middle, narrows at south
+
   {
     id: 'north_africa',
-    path: 'M 412 260 C 435 254, 468 252, 500 254 C 522 256, 540 262, 548 272 C 554 282, 554 296, 548 310 C 542 324, 530 336, 514 344 C 498 350, 478 352, 458 350 C 438 348, 420 340, 410 328 C 400 316, 396 300, 398 286 C 400 274, 406 266, 412 260 Z',
-    labelX: 475,
-    labelY: 302,
+    // Top-left of Africa, very wide. Shares east with egypt, south with congo/east_africa
+    path: 'M 400 258 L 455 255 L 510 258 L 545 265 L 548 290 L 540 320 L 520 345 L 490 355 L 450 358 L 415 345 L 398 315 L 395 285 L 400 258 Z',
+    labelX: 470,
+    labelY: 305,
   },
   {
     id: 'egypt',
-    path: 'M 548 256 C 565 250, 588 248, 606 254 C 618 259, 626 268, 628 282 C 630 296, 624 310, 614 320 C 604 328, 590 332, 576 330 C 564 328, 554 322, 548 312 C 542 302, 540 288, 542 276 C 543 266, 545 260, 548 256 Z',
-    labelX: 585,
-    labelY: 290,
+    // Top-right of Africa. Shares west with north_africa, south with east_africa
+    path: 'M 547 265 L 585 258 L 625 260 L 650 275 L 648 305 L 635 330 L 610 345 L 580 348 L 555 340 L 542 322 L 550 290 L 547 265 Z',
+    labelX: 595,
+    labelY: 300,
   },
   {
     id: 'east_africa',
-    path: 'M 576 335 C 592 328, 614 326, 630 332 C 642 338, 650 350, 652 366 C 654 382, 650 398, 640 410 C 630 420, 616 425, 600 424 C 586 422, 572 416, 562 404 C 552 392, 548 376, 548 360 C 548 346, 556 338, 576 335 Z',
+    // East side of Africa. Shares north with egypt, west with north_africa/congo, south with south_africa
+    path: 'M 557 342 L 582 350 L 612 347 L 637 332 L 660 345 L 662 380 L 652 415 L 630 440 L 600 448 L 570 440 L 548 418 L 540 390 L 540 360 L 557 342 Z',
     labelX: 600,
-    labelY: 378,
+    labelY: 390,
   },
   {
     id: 'congo',
-    path: 'M 470 355 C 492 350, 520 348, 544 354 L 548 360 C 550 375, 554 392, 552 408 C 550 420, 544 432, 532 440 C 518 448, 500 450, 484 446 C 470 442, 460 432, 455 418 C 450 404, 450 388, 454 374 C 456 364, 462 358, 470 355 Z',
-    labelX: 502,
+    // Center-west of Africa. Shares north with north_africa, east with east_africa, south with south_africa
+    path: 'M 417 347 L 452 360 L 492 357 L 522 347 L 542 362 L 542 392 L 550 420 L 535 445 L 510 455 L 478 452 L 450 440 L 428 415 L 415 385 L 410 360 L 417 347 Z',
+    labelX: 478,
     labelY: 400,
   },
   {
     id: 'south_africa',
-    path: 'M 482 450 C 502 444, 528 442, 550 448 C 566 453, 578 464, 582 480 C 586 496, 582 514, 572 528 C 562 540, 546 548, 528 550 C 510 551, 492 546, 480 536 C 468 526, 462 510, 462 494 C 462 478, 468 464, 478 454 L 482 450 Z',
-    labelX: 524,
-    labelY: 498,
+    // Bottom of Africa, narrows to point. Shares north with congo and east_africa
+    path: 'M 452 442 L 480 454 L 512 457 L 537 447 L 572 442 L 602 450 L 615 475 L 610 510 L 590 535 L 560 550 L 530 555 L 498 548 L 470 530 L 450 505 L 440 475 L 445 455 L 452 442 Z',
+    labelX: 530,
+    labelY: 500,
   },
   {
     id: 'madagascar',
-    path: 'M 630 438 C 640 432, 652 432, 660 438 C 666 444, 668 455, 668 468 C 668 480, 664 492, 656 500 C 648 507, 638 507, 632 500 C 626 492, 622 480, 622 466 C 622 452, 624 444, 630 438 Z',
-    labelX: 645,
-    labelY: 470,
+    // Island off east coast of Africa - water gap from east_africa/south_africa
+    path: 'M 638 455 L 658 450 L 668 462 L 670 490 L 662 515 L 648 525 L 635 518 L 630 495 L 632 470 L 638 455 Z',
+    labelX: 650,
+    labelY: 488,
   },
 
-  // === ASIA ===
+  // === ASIA === (x 570-1065, y 10-345)
+  // Massive continent spanning right side of map
+
   {
     id: 'ural',
-    path: 'M 672 48 C 690 40, 715 38, 735 42 C 748 46, 755 56, 756 70 C 757 84, 754 100, 746 114 C 738 126, 726 134, 712 138 C 698 141, 684 138, 675 130 C 666 122, 662 108, 662 94 C 662 78, 664 62, 668 52 L 672 48 Z',
-    labelX: 712,
-    labelY: 90,
+    // West edge of Asia, connects to Europe (ukraine). Shares east with siberia/afghanistan, south with afghanistan
+    path: 'M 680 38 L 720 30 L 755 35 L 760 60 L 758 90 L 750 120 L 735 145 L 710 150 L 685 142 L 672 118 L 670 85 L 675 55 L 680 38 Z',
+    labelX: 715,
+    labelY: 88,
   },
   {
     id: 'siberia',
-    path: 'M 740 28 C 762 20, 795 16, 822 22 C 840 26, 850 36, 852 52 C 854 68, 850 86, 842 102 C 834 116, 822 126, 808 130 C 794 133, 778 130, 766 122 C 755 114, 748 102, 746 86 C 744 70, 744 52, 746 38 L 740 28 Z',
-    labelX: 798,
-    labelY: 75,
+    // Large territory across top of Asia. Shares west with ural, east with yakutsk, south with irkutsk/mongolia
+    path: 'M 757 35 L 800 22 L 845 18 L 870 28 L 868 60 L 860 95 L 845 125 L 820 140 L 790 142 L 762 130 L 752 105 L 755 70 L 757 35 Z',
+    labelX: 810,
+    labelY: 78,
   },
   {
     id: 'yakutsk',
-    path: 'M 852 22 C 872 16, 900 14, 922 18 C 938 22, 948 32, 950 48 C 952 62, 946 78, 936 90 C 926 100, 912 106, 898 104 C 884 102, 872 96, 862 84 C 854 74, 850 60, 850 46 C 850 34, 850 26, 852 22 Z',
-    labelX: 900,
-    labelY: 58,
+    // Upper right of Asia. Shares west with siberia, east with kamchatka, south with irkutsk
+    path: 'M 872 28 L 915 18 L 955 22 L 965 45 L 958 75 L 942 100 L 918 112 L 890 110 L 868 95 L 862 65 L 868 42 L 872 28 Z',
+    labelX: 915,
+    labelY: 65,
   },
   {
     id: 'kamchatka',
-    path: 'M 955 20 C 975 14, 1000 12, 1022 18 C 1038 23, 1048 34, 1052 50 C 1055 66, 1050 84, 1040 98 C 1030 110, 1015 118, 998 118 C 982 117, 968 110, 958 98 C 950 86, 946 72, 946 56 C 946 42, 948 30, 955 20 Z',
-    labelX: 1000,
+    // Far east peninsula of Asia. Shares west with yakutsk, south with mongolia (indirect)
+    path: 'M 957 22 L 1000 12 L 1040 15 L 1060 30 L 1062 60 L 1055 90 L 1038 112 L 1012 120 L 985 115 L 968 98 L 960 72 L 957 22 Z',
+    labelX: 1012,
     labelY: 65,
   },
   {
     id: 'irkutsk',
-    path: 'M 845 108 C 862 100, 886 98, 906 102 C 922 106, 934 116, 938 130 C 941 144, 936 158, 925 166 C 914 174, 898 176, 882 174 C 868 172, 856 164, 848 152 C 841 140, 840 126, 842 114 L 845 108 Z',
-    labelX: 890,
-    labelY: 138,
+    // Below siberia/yakutsk. Shares north with siberia/yakutsk, east with mongolia, south with mongolia/china
+    path: 'M 822 142 L 860 128 L 892 112 L 920 114 L 944 102 L 952 128 L 945 158 L 925 175 L 895 178 L 862 175 L 838 165 L 822 142 Z',
+    labelX: 888,
+    labelY: 148,
   },
   {
     id: 'mongolia',
-    path: 'M 870 176 C 892 168, 922 166, 948 172 C 966 177, 978 188, 980 202 C 982 216, 974 230, 960 238 C 946 246, 926 248, 906 246 C 888 244, 874 236, 866 224 C 858 212, 858 198, 862 186 L 870 176 Z',
-    labelX: 922,
-    labelY: 208,
+    // Below irkutsk, east of china. Shares with irkutsk, china, and kamchatka indirectly
+    path: 'M 864 177 L 897 180 L 927 177 L 955 165 L 978 155 L 995 170 L 992 200 L 978 228 L 950 245 L 915 250 L 882 245 L 860 225 L 855 200 L 864 177 Z',
+    labelX: 925,
+    labelY: 212,
   },
   {
     id: 'japan',
-    path: 'M 1018 138 C 1028 130, 1042 128, 1052 134 C 1060 140, 1064 152, 1064 166 C 1064 180, 1060 196, 1052 206 C 1044 214, 1034 216, 1026 210 C 1018 204, 1014 192, 1012 178 C 1010 164, 1012 148, 1018 138 Z',
-    labelX: 1038,
-    labelY: 172,
+    // Island territory east of Asia - water gap from kamchatka/mongolia/china
+    path: 'M 1025 132 L 1048 125 L 1060 138 L 1062 165 L 1058 195 L 1048 215 L 1032 220 L 1020 208 L 1015 180 L 1018 155 L 1025 132 Z',
+    labelX: 1040,
+    labelY: 175,
   },
   {
     id: 'afghanistan',
-    path: 'M 672 142 C 692 136, 720 134, 742 140 C 758 145, 768 156, 772 172 C 774 186, 770 202, 760 214 C 750 224, 736 228, 720 228 C 704 227, 690 222, 680 212 C 670 202, 664 188, 664 174 C 664 160, 666 148, 672 142 Z',
-    labelX: 720,
-    labelY: 182,
+    // Central-west Asia. Shares north with ural, east with china, south with india/middle_east
+    path: 'M 687 144 L 712 152 L 737 147 L 755 125 L 768 140 L 778 165 L 775 195 L 762 222 L 735 235 L 708 230 L 685 215 L 675 190 L 672 165 L 680 148 L 687 144 Z',
+    labelX: 722,
+    labelY: 188,
   },
   {
     id: 'china',
-    path: 'M 776 148 C 800 140, 835 136, 866 140 C 892 144, 915 154, 930 168 C 942 180, 946 196, 940 212 C 934 228, 918 240, 898 248 C 876 255, 850 256, 826 252 C 804 248, 786 240, 776 228 C 768 216, 766 202, 768 188 C 770 174, 772 160, 776 148 Z',
-    labelX: 856,
-    labelY: 198,
+    // Very large territory. Shares west with afghanistan, north with siberia/irkutsk/mongolia, east with mongolia, south with india/siam
+    path: 'M 780 165 L 810 148 L 840 142 L 866 148 L 862 177 L 857 202 L 862 228 L 885 247 L 920 252 L 952 247 L 960 270 L 945 300 L 915 318 L 878 325 L 840 315 L 810 295 L 790 268 L 778 240 L 770 210 L 775 185 L 780 165 Z',
+    labelX: 865,
+    labelY: 240,
   },
   {
     id: 'india',
-    path: 'M 722 232 C 742 226, 768 228, 788 236 C 802 243, 810 256, 812 272 C 814 288, 808 306, 796 318 C 784 330, 768 336, 752 334 C 736 332, 722 324, 714 310 C 706 296, 704 280, 706 264 C 708 250, 714 240, 722 232 Z',
-    labelX: 760,
-    labelY: 282,
+    // South-central Asia, peninsula shape. Shares north with afghanistan/china, east with siam/china
+    path: 'M 710 232 L 737 237 L 764 224 L 780 242 L 792 270 L 812 297 L 808 325 L 790 345 L 762 340 L 735 330 L 715 310 L 705 285 L 700 260 L 710 232 Z',
+    labelX: 752,
+    labelY: 290,
   },
   {
     id: 'siam',
-    path: 'M 848 252 C 865 246, 888 248, 905 256 C 918 263, 924 276, 924 292 C 924 308, 918 324, 906 334 C 894 342, 878 344, 864 340 C 850 335, 840 324, 836 310 C 832 296, 834 280, 840 266 L 848 252 Z',
-    labelX: 880,
-    labelY: 296,
+    // Southeast Asia. Shares north with china, west with india (indirect)
+    path: 'M 842 317 L 880 327 L 917 320 L 947 302 L 960 315 L 955 340 L 935 345 L 910 342 L 885 345 L 862 340 L 845 335 L 842 317 Z',
+    labelX: 898,
+    labelY: 332,
   },
   {
     id: 'middle_east',
-    path: 'M 585 192 C 605 184, 634 182, 658 188 C 674 193, 684 204, 688 220 C 692 236, 688 254, 678 268 C 668 280, 652 288, 634 290 C 616 292, 598 286, 586 276 C 574 265, 568 250, 568 234 C 568 218, 572 204, 580 196 L 585 192 Z',
-    labelX: 630,
-    labelY: 238,
+    // Southwest Asia, bridge to Africa/Europe. Shares north with ukraine(indirect)/afghanistan, east with india/afghanistan
+    path: 'M 592 214 L 625 202 L 658 195 L 677 192 L 677 218 L 687 240 L 712 234 L 708 260 L 698 285 L 675 300 L 645 305 L 618 298 L 598 278 L 585 252 L 585 230 L 592 214 Z',
+    labelX: 642,
+    labelY: 255,
   },
 
-  // === AUSTRALIA ===
+  // === AUSTRALIA === (x 870-1075, y 355-565)
+  // Indonesia and New Guinea as islands, western/eastern australia as mainland
+
   {
     id: 'indonesia',
-    path: 'M 878 378 C 895 370, 920 368, 942 374 C 956 379, 964 390, 964 404 C 963 416, 955 426, 942 430 C 928 434, 910 432, 896 426 C 882 420, 874 408, 872 396 C 871 388, 874 382, 878 378 Z',
+    // Island chain - water gap from siam and australia. Elongated archipelago shape
+    path: 'M 878 370 L 915 362 L 948 368 L 962 385 L 958 405 L 940 418 L 912 420 L 888 412 L 875 395 L 878 370 Z',
     labelX: 918,
-    labelY: 400,
-  },
-  {
-    id: 'new_guinea',
-    path: 'M 982 368 C 1000 360, 1025 358, 1045 364 C 1058 369, 1066 380, 1066 394 C 1065 406, 1058 416, 1046 422 C 1032 427, 1014 426, 1000 420 C 988 414, 980 404, 978 392 C 977 382, 978 374, 982 368 Z',
-    labelX: 1022,
     labelY: 392,
   },
   {
+    id: 'new_guinea',
+    // Island east of Indonesia - water gap from indonesia and eastern australia
+    path: 'M 985 362 L 1025 355 L 1058 362 L 1070 380 L 1065 400 L 1048 415 L 1020 418 L 995 410 L 982 395 L 985 362 Z',
+    labelX: 1025,
+    labelY: 388,
+  },
+  {
     id: 'western_australia',
-    path: 'M 892 450 C 914 442, 942 440, 962 448 C 976 454, 984 468, 986 486 C 988 504, 982 524, 970 538 C 958 550, 940 556, 922 554 C 906 552, 892 542, 884 528 C 876 514, 874 496, 876 478 C 878 464, 884 454, 892 450 Z',
-    labelX: 932,
-    labelY: 498,
+    // West half of Australian mainland. Shares east edge with eastern_australia
+    path: 'M 885 440 L 920 435 L 955 438 L 972 448 L 975 480 L 975 515 L 968 542 L 948 558 L 920 562 L 895 550 L 880 525 L 875 495 L 878 462 L 885 440 Z',
+    labelX: 925,
+    labelY: 500,
   },
   {
     id: 'eastern_australia',
-    path: 'M 975 450 C 998 442, 1025 440, 1046 448 C 1060 454, 1068 468, 1072 486 C 1074 506, 1070 528, 1058 544 C 1046 556, 1028 562, 1010 560 C 994 557, 982 546, 976 530 C 970 514, 970 494, 972 476 C 974 462, 974 454, 975 450 Z',
-    labelX: 1024,
-    labelY: 502,
+    // East half of Australian mainland. Shares west edge with western_australia
+    path: 'M 977 448 L 1010 440 L 1042 445 L 1062 462 L 1072 490 L 1072 525 L 1060 550 L 1038 562 L 1010 565 L 985 555 L 977 530 L 977 498 L 977 465 L 977 448 Z',
+    labelX: 1025,
+    labelY: 505,
   },
 ];
 
 // Connection lines between territories for visual context (dashed lines across water)
 export const connectionLines: { from: string; to: string; path: string }[] = [
   // Alaska - Kamchatka (wraps around map edges)
-  { from: 'alaska', to: 'kamchatka', path: 'M 30 65 Q 15 40, 5 30 M 1095 30 Q 1080 20, 1055 25' },
+  { from: 'alaska', to: 'kamchatka', path: 'M 27 55 Q 15 35, 5 25 M 1095 25 Q 1075 15, 1060 20' },
   // Greenland - Iceland
-  { from: 'greenland', to: 'iceland', path: 'M 390 60 Q 400 62, 415 60' },
+  { from: 'greenland', to: 'iceland', path: 'M 300 40 Q 290 42, 472 52' },
+  // Greenland - NW Territory
+  { from: 'greenland', to: 'northwest_territory', path: 'M 295 70 Q 285 75, 275 55' },
+  // Greenland - Quebec
+  { from: 'greenland', to: 'quebec', path: 'M 320 90 Q 330 95, 340 100' },
+  // Iceland - Scandinavia
+  { from: 'iceland', to: 'scandinavia', path: 'M 470 50 Q 480 42, 500 36' },
+  // Iceland - Great Britain
+  { from: 'iceland', to: 'great_britain', path: 'M 435 78 Q 432 85, 432 92' },
+  // Great Britain - Northern Europe
+  { from: 'great_britain', to: 'northern_europe', path: 'M 468 110 Q 476 112, 486 118' },
+  // Great Britain - Western Europe
+  { from: 'great_britain', to: 'western_europe', path: 'M 445 155 Q 442 158, 440 155' },
   // Brazil - North Africa
-  { from: 'brazil', to: 'north_africa', path: 'M 316 400 Q 360 340, 400 280' },
+  { from: 'brazil', to: 'north_africa', path: 'M 320 400 Q 355 350, 400 290' },
   // Southern Europe - Egypt
-  { from: 'southern_europe', to: 'egypt', path: 'M 555 248 Q 565 252, 548 260' },
-  // Southern Europe - Middle East
-  { from: 'southern_europe', to: 'middle_east', path: 'M 562 220 Q 572 218, 580 210' },
+  { from: 'southern_europe', to: 'egypt', path: 'M 560 255 Q 575 258, 585 260' },
+  // Southern Europe - North Africa
+  { from: 'southern_europe', to: 'north_africa', path: 'M 530 260 Q 520 262, 510 260' },
+  // Western Europe - North Africa
+  { from: 'western_europe', to: 'north_africa', path: 'M 430 252 Q 425 258, 420 260' },
   // East Africa - Madagascar
-  { from: 'east_africa', to: 'madagascar', path: 'M 640 420 Q 645 430, 638 438' },
+  { from: 'east_africa', to: 'madagascar', path: 'M 630 445 Q 635 450, 640 455' },
+  // East Africa - Middle East
+  { from: 'east_africa', to: 'middle_east', path: 'M 660 348 Q 665 330, 660 310' },
+  // Egypt - Middle East
+  { from: 'egypt', to: 'middle_east', path: 'M 650 280 Q 660 282, 670 290' },
   // Siam - Indonesia
-  { from: 'siam', to: 'indonesia', path: 'M 880 344 Q 885 358, 890 375' },
+  { from: 'siam', to: 'indonesia', path: 'M 900 345 Q 905 355, 910 365' },
+  // Indonesia - New Guinea
+  { from: 'indonesia', to: 'new_guinea', path: 'M 960 390 Q 970 385, 982 380' },
+  // Indonesia - Western Australia
+  { from: 'indonesia', to: 'western_australia', path: 'M 918 420 Q 920 428, 920 438' },
+  // New Guinea - Eastern Australia
+  { from: 'new_guinea', to: 'eastern_australia', path: 'M 1035 418 Q 1035 428, 1035 442' },
   // Central America - Venezuela
-  { from: 'central_america', to: 'venezuela', path: 'M 168 326 L 170 332' },
+  { from: 'central_america', to: 'venezuela', path: 'M 170 328 Q 165 330, 155 332' },
+  // Alaska - Northwest Territory
+  { from: 'alaska', to: 'northwest_territory', path: 'M 135 70 L 137 70' },
 ];
 
 // Continent colors for the background regions

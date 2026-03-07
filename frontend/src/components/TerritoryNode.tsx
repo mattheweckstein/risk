@@ -91,7 +91,7 @@ export default function TerritoryNode({
       <circle
         cx={labelX}
         cy={labelY}
-        r={territory.troops >= 10 ? 13 : 11}
+        r={territory.troops >= 10 ? 15 : 13}
         fill={darkerFill}
         stroke={isSelected ? '#fff' : isAttackTarget ? '#ff4444' : '#0d0d1a'}
         strokeWidth={isSelected || isAttackTarget ? 2 : 1.5}
@@ -103,7 +103,7 @@ export default function TerritoryNode({
         textAnchor="middle"
         dominantBaseline="central"
         fill="white"
-        fontSize={territory.troops >= 10 ? 10 : 11}
+        fontSize={territory.troops >= 10 ? 13 : 14}
         fontWeight="bold"
         style={{ pointerEvents: 'none', userSelect: 'none' }}
       >

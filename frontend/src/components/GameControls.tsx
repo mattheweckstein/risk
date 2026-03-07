@@ -197,6 +197,12 @@ export default function GameControls({
             >
               +
             </button>
+            <button
+              onClick={() => setConquestTroops(gameState.pendingConquest!.maxTroops)}
+              className="px-2 h-8 rounded bg-yellow-500/30 text-white text-xs font-bold hover:bg-yellow-500/50"
+            >
+              Max
+            </button>
             <span className="text-xs text-gray-400">/ {gameState.pendingConquest.maxTroops}</span>
           </div>
           <div className="flex gap-2">
@@ -311,6 +317,12 @@ export default function GameControls({
                 >
                   +
                 </button>
+                <button
+                  onClick={() => setFortifyTroops(maxFortifyTroops)}
+                  className="px-2 h-8 rounded bg-blue-500/30 text-white text-xs font-bold hover:bg-blue-500/50"
+                >
+                  Max
+                </button>
                 <span className="text-xs text-gray-400">/ {maxFortifyTroops}</span>
               </div>
               <button
@@ -353,9 +365,13 @@ export default function GameControls({
       )}
 
       {/* Cards */}
-      {humanPlayer && humanPlayer.cards.length > 0 && isHumanTurn && gameState.phase === 'place' && (
-        <div className="p-3 rounded-lg" style={{ background: 'rgba(0,0,0,0.2)' }}>
-          <div className="text-xs text-gray-400 uppercase mb-2 font-bold">Your Cards</div>
+      {humanPlayer && humanPlayer.cards.length > 0 && isHumanTurn && (gameState.phase === 'place' || (gameState.phase === 'attack' && humanPlayer.cards.length >= 6)) && (
+        <div className="p-3 rounded-lg" style={{ background: gameState.phase === 'attack' && humanPlayer.cards.length >= 6 ? 'rgba(233,69,96,0.2)' : 'rgba(0,0,0,0.2)' }}>
+          <div className="text-xs text-gray-400 uppercase mb-2 font-bold">
+            {gameState.phase === 'attack' && humanPlayer.cards.length >= 6
+              ? <span className="text-red-400">MUST TRADE CARDS ({humanPlayer.cards.length} cards)</span>
+              : 'Your Cards'}
+          </div>
           <div className="flex flex-wrap gap-1 mb-2">
             {humanPlayer.cards.map((card, idx) => {
               const icons: Record<string, string> = {
@@ -409,17 +425,25 @@ export default function GameControls({
               <div
                 key={player.id}
                 className={`flex items-center gap-2 text-xs ${
-                  !player.isAlive ? 'opacity-40 line-through' : ''
+                  !player.isAlive ? 'opacity-50' : ''
                 } ${gameState.currentPlayer === player.id ? 'font-bold' : ''}`}
               >
                 <div
                   className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                  style={{ background: colorMap[player.color] || '#555' }}
+                  style={{ background: player.isAlive ? (colorMap[player.color] || '#555') : '#555' }}
                 />
-                <span className="flex-1 truncate text-gray-200">{player.name}</span>
-                <span className="text-gray-500">{terrCount}T</span>
-                <span className="text-gray-500">{totalTroops}A</span>
-                <span className="text-gray-500" title="Cards">{player.cards.length}C</span>
+                <span className={`flex-1 truncate ${player.isAlive ? 'text-gray-200' : 'text-gray-500 line-through'}`}>
+                  {player.name}
+                </span>
+                {player.isAlive ? (
+                  <>
+                    <span className="text-gray-500">{terrCount}T</span>
+                    <span className="text-gray-500">{totalTroops}A</span>
+                    <span className="text-gray-500" title="Cards">{player.cards.length}C</span>
+                  </>
+                ) : (
+                  <span className="text-red-400/60 text-[10px] uppercase font-semibold">Eliminated</span>
+                )}
               </div>
             );
           })}

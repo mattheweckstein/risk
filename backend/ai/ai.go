@@ -325,6 +325,8 @@ func executeAttacks(state *models.GameState, playerID string) {
 								if player != nil {
 									player.Cards = append(player.Cards, defender.Cards...)
 									defender.Cards = nil
+									// Trade cards immediately if holding too many
+									tradeCards(state, player)
 								}
 								break
 							}
@@ -341,10 +343,7 @@ func executeAttacks(state *models.GameState, playerID string) {
 		}
 	}
 
-	// Draw a card if conquered at least one territory
-	if state.ConqueredThisTurn {
-		drawCard(state, playerID)
-	}
+	// Card draw is handled by engine.EndPhase via ConqueredThisTurn flag
 }
 
 // buildAttackCandidates finds all favorable attack opportunities.

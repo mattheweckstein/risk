@@ -373,12 +373,17 @@ func (e *GameEngine) Attack(state *models.GameState, from, to string, attackerDi
 			Message: fmt.Sprintf("Conquered %s from %s!", toT.Name, from),
 		})
 
+		// Write territory changes before checking elimination
+		// (checkPlayerEliminated counts territories in state.Territories)
+		state.Territories[from] = fromT
+		state.Territories[to] = toT
+
 		// Check if defender is eliminated
 		e.checkPlayerEliminated(state, defenderID)
+	} else {
+		state.Territories[from] = fromT
+		state.Territories[to] = toT
 	}
-
-	state.Territories[from] = fromT
-	state.Territories[to] = toT
 
 	result := &models.AttackResult{
 		AttackerRolls:      attackerRolls,
@@ -572,10 +577,6 @@ func (e *GameEngine) EndPhase(state *models.GameState) error {
 
 // TradeCards validates and processes a card trade-in.
 func (e *GameEngine) TradeCards(state *models.GameState, indices [3]int) error {
-	if state.Phase != models.PhasePlace {
-		return fmt.Errorf("can only trade cards during place phase")
-	}
-
 	var currentPlayer *models.Player
 	for i := range state.Players {
 		if state.Players[i].ID == state.CurrentPlayer {
@@ -585,6 +586,13 @@ func (e *GameEngine) TradeCards(state *models.GameState, indices [3]int) error {
 	}
 	if currentPlayer == nil {
 		return fmt.Errorf("current player not found")
+	}
+
+	// Allow trading during place phase, or during attack phase if player has 6+ cards (elimination rule)
+	if state.Phase == models.PhaseAttack && len(currentPlayer.Cards) >= 6 {
+		// Forced trade after elimination — allowed
+	} else if state.Phase != models.PhasePlace {
+		return fmt.Errorf("can only trade cards during place phase")
 	}
 
 	// Validate indices
@@ -856,6 +864,16 @@ func (e *GameEngine) getPlayer(state *models.GameState, playerID string) models.
 		}
 	}
 	return models.Player{}
+}
+
+// getCurrentPlayer returns a pointer to the current player.
+func (e *GameEngine) getCurrentPlayer(state *models.GameState) *models.Player {
+	for i := range state.Players {
+		if state.Players[i].ID == state.CurrentPlayer {
+			return &state.Players[i]
+		}
+	}
+	return nil
 }
 
 // nextAlivePlayerIndex returns the index of the next alive player after the current player.

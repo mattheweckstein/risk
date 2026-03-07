@@ -47,6 +47,7 @@ type GameState struct {
 	ConqueredThisTurn bool             `json:"conqueredThisTurn"`
 	LastAttackResult *AttackResult      `json:"lastAttackResult,omitempty"`
 	PendingConquest  *PendingConquest   `json:"pendingConquest,omitempty"`
+	FreeFortify      bool               `json:"freeFortify"`
 }
 
 // PendingConquest tracks a conquest where the player can still move more troops in
@@ -83,9 +84,10 @@ type AttackResult struct {
 
 // NewGameRequest is the request body for creating a new game
 type NewGameRequest struct {
-	PlayerName string   `json:"playerName"`
-	AICount    int      `json:"aiCount"`
-	AINames    []string `json:"aiNames,omitempty"`
+	PlayerName  string   `json:"playerName"`
+	AICount     int      `json:"aiCount"`
+	AINames     []string `json:"aiNames,omitempty"`
+	FreeFortify bool     `json:"freeFortify"`
 }
 
 // PlaceRequest is the request body for placing troops

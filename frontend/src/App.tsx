@@ -345,6 +345,11 @@ export default function App() {
         clearSelection();
         addToast(`Moved ${troops} troops`, 'info');
 
+        if (gameState.freeFortify) {
+          // Free fortify: let the player make additional moves; they click "End Turn" when done
+          return;
+        }
+
         updated = await api.endPhase(updated.id);
         setGameState(updated);
 

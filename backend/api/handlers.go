@@ -13,6 +13,7 @@ import (
 	"github.com/mattheweckstein/risk/backend/ai"
 	"github.com/mattheweckstein/risk/backend/game"
 	"github.com/mattheweckstein/risk/backend/models"
+	"github.com/mattheweckstein/risk/backend/storage"
 )
 
 // Server holds the API state.
@@ -20,13 +21,22 @@ type Server struct {
 	engine *game.GameEngine
 	games  map[string]*models.GameState
 	mu     sync.RWMutex
+	store  *storage.Store
 }
 
-// NewServer creates a new API server.
-func NewServer() *Server {
+// NewServer creates a new API server with persistence.
+func NewServer(store *storage.Store, games map[string]*models.GameState) *Server {
 	return &Server{
 		engine: game.NewGameEngine(),
-		games:  make(map[string]*models.GameState),
+		games:  games,
+		store:  store,
+	}
+}
+
+// persistGames saves the current games map to disk.
+func (s *Server) persistGames() {
+	if err := s.store.SaveAll(s.games); err != nil {
+		log.Printf("Error persisting games: %v", err)
 	}
 }
 
@@ -79,11 +89,13 @@ func (s *Server) handleNewGame(w http.ResponseWriter, r *http.Request) {
 
 	state := s.engine.NewGame(req.PlayerName, req.AICount, req.AINames)
 	state.ID = uuid.New().String()
+	state.FreeFortify = req.FreeFortify
 
 	s.mu.Lock()
 	s.games[state.ID] = state
 	s.mu.Unlock()
 
+	s.persistGames()
 	log.Printf("New game created: %s with %d players", state.ID, len(state.Players))
 	writeJSON(w, http.StatusCreated, state)
 }
@@ -119,6 +131,7 @@ func (s *Server) handlePlace(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.persistGames()
 	writeJSON(w, http.StatusOK, state)
 }
 
@@ -144,6 +157,7 @@ func (s *Server) handleAttack(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.persistGames()
 	writeJSON(w, http.StatusOK, state)
 }
 
@@ -169,6 +183,7 @@ func (s *Server) handleMoveAfterConquest(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	s.persistGames()
 	writeJSON(w, http.StatusOK, state)
 }
 
@@ -194,6 +209,7 @@ func (s *Server) handleFortify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.persistGames()
 	writeJSON(w, http.StatusOK, state)
 }
 
@@ -213,6 +229,7 @@ func (s *Server) handleEndPhase(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.persistGames()
 	writeJSON(w, http.StatusOK, state)
 }
 
@@ -238,6 +255,7 @@ func (s *Server) handleTradeCards(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.persistGames()
 	writeJSON(w, http.StatusOK, state)
 }
 
@@ -302,6 +320,7 @@ func (s *Server) handleAITurn(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	s.persistGames()
 	writeJSON(w, http.StatusOK, state)
 }
 

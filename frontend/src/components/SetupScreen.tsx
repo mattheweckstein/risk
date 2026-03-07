@@ -12,6 +12,7 @@ export default function SetupScreen({ onGameStart }: SetupScreenProps) {
   const [playerName, setPlayerName] = useState('');
   const [aiCount, setAICount] = useState(2);
   const [aiNames, setAINames] = useState([...defaultAINames]);
+  const [freeFortify, setFreeFortify] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const api = useGameApi();
@@ -27,7 +28,8 @@ export default function SetupScreen({ onGameStart }: SetupScreenProps) {
       const game = await api.createGame(
         playerName.trim(),
         aiCount,
-        aiNames.slice(0, aiCount)
+        aiNames.slice(0, aiCount),
+        freeFortify
       );
       onGameStart(game);
     } catch (e) {
@@ -126,6 +128,37 @@ export default function SetupScreen({ onGameStart }: SetupScreenProps) {
                 />
               ))}
             </div>
+          </div>
+
+          {/* Game Settings */}
+          <div className="mb-8">
+            <label className="block text-sm font-semibold mb-3 text-gray-300 uppercase tracking-wide">
+              Game Settings
+            </label>
+            <label
+              className={`flex items-center justify-between p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                freeFortify
+                  ? 'border-red-500 bg-red-500/10'
+                  : 'border-gray-600 bg-[#1a1a2e] hover:border-gray-500'
+              }`}
+              onClick={() => setFreeFortify(!freeFortify)}
+            >
+              <div>
+                <div className="text-sm font-semibold text-white">Free Fortify</div>
+                <div className="text-xs text-gray-400 mt-0.5">Allow multiple troop movements per turn</div>
+              </div>
+              <div
+                className={`w-10 h-6 rounded-full relative transition-all flex-shrink-0 ml-3 ${
+                  freeFortify ? 'bg-red-500' : 'bg-gray-600'
+                }`}
+              >
+                <div
+                  className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-all ${
+                    freeFortify ? 'left-5' : 'left-1'
+                  }`}
+                />
+              </div>
+            </label>
           </div>
 
           {/* Error */}

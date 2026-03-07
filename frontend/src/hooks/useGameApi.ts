@@ -13,10 +13,10 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
 }
 
 export function useGameApi() {
-  const createGame = (playerName: string, aiCount: number, aiNames: string[]): Promise<GameState> =>
+  const createGame = (playerName: string, aiCount: number, aiNames: string[], freeFortify: boolean): Promise<GameState> =>
     apiFetch<GameState>('/api/game/new', {
       method: 'POST',
-      body: JSON.stringify({ playerName, aiCount, aiNames }),
+      body: JSON.stringify({ playerName, aiCount, aiNames, freeFortify }),
     });
 
   const getGame = (id: string): Promise<GameState> =>

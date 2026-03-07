@@ -36,6 +36,7 @@ export interface GameState {
   troopsToDeploy: number;
   cardTradeCount: number;
   conqueredThisTurn: boolean;
+  freeFortify: boolean;
   lastAttackResult?: AttackResult;
   pendingConquest?: PendingConquest;
 }

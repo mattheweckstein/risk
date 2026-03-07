@@ -7,12 +7,12 @@ interface TerritoryNodeProps {
   labelX: number;
   labelY: number;
   isSelected: boolean;
+  isAttackTarget: boolean;
   isValidTarget: boolean;
   onClick: () => void;
   playerColor: string;
 }
 
-// Map player color names to hex values
 const colorMap: Record<string, string> = {
   red: '#e94560',
   blue: '#4a9eff',
@@ -33,6 +33,7 @@ export default function TerritoryNode({
   labelX,
   labelY,
   isSelected,
+  isAttackTarget,
   isValidTarget,
   onClick,
   playerColor,
@@ -42,38 +43,47 @@ export default function TerritoryNode({
   const fillColor = colorMap[playerColor] || playerColor || '#555';
   const darkerFill = darkerColorMap[playerColor] || fillColor;
 
-  // Selected territory gets bright highlight
   const strokeColor = isSelected
     ? '#ffffff'
+    : isAttackTarget
+    ? '#ff4444'
     : isValidTarget
     ? '#ffdd57'
     : hovered
     ? '#ffffff88'
     : '#1a1a2e';
 
-  const strokeWidth = isSelected ? 3 : isValidTarget ? 2.5 : hovered ? 1.5 : 0.8;
-
+  const strokeWidth = isSelected ? 3 : isAttackTarget ? 3 : isValidTarget ? 2.5 : hovered ? 1.5 : 0.8;
   const fillOpacity = territory.owner ? 0.85 : 0.4;
+
+  const animClass = isValidTarget
+    ? 'animate-pulse-target'
+    : isAttackTarget
+    ? 'animate-pulse-target'
+    : '';
 
   return (
     <g
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      className="territory-path"
       style={{ cursor: 'pointer' }}
     >
       {/* Territory shape */}
       <path
         d={pathData}
         fill={fillColor}
-        fillOpacity={fillOpacity}
+        fillOpacity={isAttackTarget ? 1 : fillOpacity}
         stroke={strokeColor}
         strokeWidth={strokeWidth}
-        className={isValidTarget ? 'animate-pulse-target' : ''}
+        className={animClass}
         style={{
           transition: 'fill-opacity 0.2s, stroke 0.2s',
-          filter: isSelected ? 'brightness(1.3) drop-shadow(0 0 8px rgba(255,255,255,0.4))' : undefined,
+          filter: isSelected
+            ? 'brightness(1.3) drop-shadow(0 0 8px rgba(255,255,255,0.4))'
+            : isAttackTarget
+            ? 'brightness(1.2) drop-shadow(0 0 6px rgba(255,68,68,0.5))'
+            : undefined,
         }}
       />
 
@@ -83,8 +93,8 @@ export default function TerritoryNode({
         cy={labelY}
         r={territory.troops >= 10 ? 13 : 11}
         fill={darkerFill}
-        stroke="#0d0d1a"
-        strokeWidth={1.5}
+        stroke={isSelected ? '#fff' : isAttackTarget ? '#ff4444' : '#0d0d1a'}
+        strokeWidth={isSelected || isAttackTarget ? 2 : 1.5}
         style={{ filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.5))' }}
       />
       <text
@@ -104,33 +114,20 @@ export default function TerritoryNode({
       {hovered && (
         <g style={{ pointerEvents: 'none' }}>
           <rect
-            x={labelX - 65}
-            y={labelY - 52}
-            width={130}
-            height={38}
+            x={labelX - 70}
+            y={labelY - 55}
+            width={140}
+            height={42}
             rx={6}
             fill="rgba(15, 52, 96, 0.95)"
             stroke="rgba(233, 69, 96, 0.5)"
             strokeWidth={1}
           />
-          <text
-            x={labelX}
-            y={labelY - 38}
-            textAnchor="middle"
-            fill="white"
-            fontSize={9}
-            fontWeight="bold"
-          >
+          <text x={labelX} y={labelY - 40} textAnchor="middle" fill="white" fontSize={9} fontWeight="bold">
             {territory.name}
           </text>
-          <text
-            x={labelX}
-            y={labelY - 25}
-            textAnchor="middle"
-            fill="#aaa"
-            fontSize={8}
-          >
-            Troops: {territory.troops} | {territory.continent.replace('_', ' ')}
+          <text x={labelX} y={labelY - 26} textAnchor="middle" fill="#aaa" fontSize={8}>
+            Troops: {territory.troops} | {territory.continent.replace(/_/g, ' ')}
           </text>
         </g>
       )}

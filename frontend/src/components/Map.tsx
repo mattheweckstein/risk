@@ -5,6 +5,7 @@ import TerritoryNode from './TerritoryNode';
 interface MapProps {
   gameState: GameState;
   selectedTerritory: string | null;
+  attackTarget: string | null;
   validTargets: string[];
   onTerritoryClick: (territoryId: string) => void;
 }
@@ -15,18 +16,35 @@ function getPlayerColor(gameState: GameState, territory: Territory): string {
   return player?.color || '#555';
 }
 
+function getTerritoryCenter(id: string): { x: number; y: number } | null {
+  const tp = territoryPaths.find((t) => t.id === id);
+  return tp ? { x: tp.labelX, y: tp.labelY } : null;
+}
+
 export default function Map({
   gameState,
   selectedTerritory,
+  attackTarget,
   validTargets,
   onTerritoryClick,
 }: MapProps) {
+  // Draw attack arrow from selected territory to attack target
+  const attackArrow =
+    selectedTerritory && attackTarget
+      ? (() => {
+          const from = getTerritoryCenter(selectedTerritory);
+          const to = getTerritoryCenter(attackTarget);
+          if (!from || !to) return null;
+          return { from, to };
+        })()
+      : null;
+
   return (
     <div className="relative w-full h-full">
       <svg
         viewBox="0 0 1100 600"
         className="w-full h-full"
-        style={{ maxHeight: 'calc(100vh - 32px)' }}
+        style={{ maxHeight: 'calc(100vh - 64px)' }}
         preserveAspectRatio="xMidYMid meet"
       >
         {/* Background */}
@@ -35,6 +53,17 @@ export default function Map({
             <stop offset="0%" stopColor="#1a2744" />
             <stop offset="100%" stopColor="#0d1525" />
           </radialGradient>
+          <marker
+            id="attack-arrow"
+            viewBox="0 0 10 10"
+            refX="9"
+            refY="5"
+            markerWidth="6"
+            markerHeight="6"
+            orient="auto-start-reverse"
+          >
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#ff4444" />
+          </marker>
         </defs>
         <rect width="1100" height="600" fill="url(#ocean-gradient)" />
 
@@ -108,12 +137,36 @@ export default function Map({
               labelX={tp.labelX}
               labelY={tp.labelY}
               isSelected={selectedTerritory === tp.id}
+              isAttackTarget={attackTarget === tp.id}
               isValidTarget={validTargets.includes(tp.id)}
               onClick={() => onTerritoryClick(tp.id)}
               playerColor={getPlayerColor(gameState, territory)}
             />
           );
         })}
+
+        {/* Attack arrow */}
+        {attackArrow && (
+          <line
+            x1={attackArrow.from.x}
+            y1={attackArrow.from.y}
+            x2={attackArrow.to.x}
+            y2={attackArrow.to.y}
+            stroke="#ff4444"
+            strokeWidth={3}
+            strokeDasharray="8 4"
+            markerEnd="url(#attack-arrow)"
+            opacity={0.8}
+            style={{ pointerEvents: 'none' }}
+          >
+            <animate
+              attributeName="stroke-dashoffset"
+              values="0;-24"
+              dur="0.8s"
+              repeatCount="indefinite"
+            />
+          </line>
+        )}
       </svg>
     </div>
   );

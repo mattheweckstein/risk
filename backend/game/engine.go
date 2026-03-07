@@ -110,7 +110,7 @@ func (e *GameEngine) NewGame(playerName string, aiCount int, aiNames []string) *
 		Territories:    territories,
 		Deck:           deck,
 		Log:            []models.LogEntry{},
-		TroopsToDeploy: startingTroops - terrCounts[players[0].ID],
+		TroopsToDeploy: 1, // Setup: place 1 troop at a time, round-robin
 		CardTradeCount: 0,
 	}
 

@@ -233,11 +233,14 @@ func (s *Server) handleAITurn(w http.ResponseWriter, r *http.Request) {
 
 	switch state.Phase {
 	case models.PhaseSetup:
-		// During setup, AI places 1 troop using the AI scoring logic
-		territoryID := ai.PlaceSetupTroop(state, state.CurrentPlayer)
-		if err := s.engine.PlaceTroops(state, territoryID, 1); err != nil {
-			writeError(w, http.StatusInternalServerError, err.Error())
-			return
+		// During setup, keep placing for all consecutive AI players until
+		// it's the human's turn (or setup ends). This avoids many round-trips.
+		for state.Phase == models.PhaseSetup && s.engine.IsCurrentPlayerAI(state) {
+			territoryID := ai.PlaceSetupTroop(state, state.CurrentPlayer)
+			if err := s.engine.PlaceTroops(state, territoryID, 1); err != nil {
+				writeError(w, http.StatusInternalServerError, err.Error())
+				return
+			}
 		}
 
 	case models.PhasePlace, models.PhaseAttack, models.PhaseFortify:

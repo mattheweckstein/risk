@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { GameState } from './types/game';
 import { useGameApi } from './hooks/useGameApi';
 import SetupScreen from './components/SetupScreen';
@@ -18,7 +18,9 @@ export default function App() {
   const [fortifySource, setFortifySource] = useState<string | null>(null);
   const [fortifyTarget, setFortifyTarget] = useState<string | null>(null);
   const [aiThinking, setAiThinking] = useState(false);
+  const [attackPending, setAttackPending] = useState(false);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [instructionText, setInstructionText] = useState('');
   const toastIdRef = useRef(0);
   const api = useGameApi();
 
@@ -38,37 +40,71 @@ export default function App() {
     setFortifyTarget(null);
   }, []);
 
+  // Update instruction text based on game state
+  useEffect(() => {
+    if (!gameState || aiThinking) {
+      setInstructionText('');
+      return;
+    }
+    const currentPlayer = gameState.players.find((p) => p.id === gameState.currentPlayer);
+    if (!currentPlayer || currentPlayer.isAI) {
+      setInstructionText('');
+      return;
+    }
+
+    if (gameState.phase === 'setup') {
+      setInstructionText('Click one of your territories to place 1 troop');
+    } else if (gameState.phase === 'place') {
+      setInstructionText(`Click your territories to deploy troops (${gameState.troopsToDeploy} remaining)`);
+    } else if (gameState.phase === 'attack') {
+      if (!selectedTerritory) {
+        setInstructionText('Select a territory with 2+ troops to attack from, or End Attack');
+      } else if (!attackTarget) {
+        setInstructionText('Now click an adjacent enemy territory to attack');
+      } else {
+        setInstructionText('Choose number of dice or click attack target again to auto-attack');
+      }
+    } else if (gameState.phase === 'fortify') {
+      if (!fortifySource) {
+        setInstructionText('Select a territory to move troops from, or Skip');
+      } else if (!fortifyTarget) {
+        setInstructionText('Select a connected friendly territory to move troops to');
+      } else {
+        setInstructionText('Choose how many troops to move');
+      }
+    } else if (gameState.phase === 'ended') {
+      setInstructionText('');
+    }
+  }, [gameState, aiThinking, selectedTerritory, attackTarget, fortifySource, fortifyTarget]);
+
   // Run AI turns until it's the human player's turn
   const runAiTurns = useCallback(
     async (state: GameState) => {
       let current = state;
       const humanId = current.players.find((p) => !p.isAI)?.id;
 
-      while (
-        current.phase !== 'ended' &&
-        current.currentPlayer !== humanId
-      ) {
+      while (current.phase !== 'ended' && current.currentPlayer !== humanId) {
         setAiThinking(true);
-        await delay(600);
+        await delay(500);
         try {
           current = await api.aiTurn(current.id);
           setGameState(current);
         } catch (e) {
           console.error('AI turn failed:', e);
+          addToast('AI turn failed - check console', 'warning');
           break;
         }
       }
       setAiThinking(false);
       return current;
     },
-    [api],
+    [api, addToast],
   );
 
   const handleGameStart = useCallback(
     async (game: GameState) => {
       setGameState(game);
       clearSelection();
-      // If game starts with AI turn (setup), run AI turns
       const humanId = game.players.find((p) => !p.isAI)?.id;
       if (game.currentPlayer !== humanId) {
         await runAiTurns(game);
@@ -77,9 +113,54 @@ export default function App() {
     [clearSelection, runAiTurns],
   );
 
+  // Execute attack with max dice by default
+  const doAttack = useCallback(
+    async (from: string, to: string, dice?: number) => {
+      if (!gameState) return;
+      const fromTerr = gameState.territories[from];
+      const maxDice = Math.min(3, (fromTerr?.troops || 1) - 1);
+      const attackDice = dice || maxDice;
+      if (attackDice < 1) return;
+
+      setAttackPending(true);
+      try {
+        const updated = await api.attack(gameState.id, from, to, attackDice);
+        setGameState(updated);
+
+        if (updated.lastAttackResult?.conquered) {
+          addToast(`Conquered ${updated.territories[to]?.name}!`, 'success');
+          // After conquest, clear target but keep source only if it still has troops
+          setAttackTarget(null);
+          const newSourceTroops = updated.territories[from]?.troops || 0;
+          if (newSourceTroops < 2) {
+            setSelectedTerritory(null);
+          }
+        } else {
+          // Attack didn't conquer - keep both selected so player can attack again
+          // But update if source now has too few troops
+          const newSourceTroops = updated.territories[from]?.troops || 0;
+          if (newSourceTroops < 2) {
+            clearSelection();
+          }
+        }
+
+        if (updated.phase === 'ended') {
+          const winner = updated.players.find((p) => p.id === updated.winner);
+          addToast(`${winner?.name} wins the game!`, 'success');
+          clearSelection();
+        }
+      } catch (e) {
+        addToast(e instanceof Error ? e.message : 'Attack failed', 'warning');
+      } finally {
+        setAttackPending(false);
+      }
+    },
+    [gameState, api, addToast, clearSelection],
+  );
+
   const handleTerritoryClick = useCallback(
     async (territoryId: string) => {
-      if (!gameState || aiThinking) return;
+      if (!gameState || aiThinking || attackPending) return;
 
       const territory = gameState.territories[territoryId];
       if (!territory) return;
@@ -92,14 +173,12 @@ export default function App() {
       // === SETUP PHASE ===
       if (gameState.phase === 'setup') {
         if (territory.owner !== humanId) {
-          addToast('You can only place troops on your own territories', 'warning');
+          addToast('Click one of YOUR territories (highlighted)', 'warning');
           return;
         }
         try {
           let updated = await api.placeTroops(gameState.id, territoryId, 1);
           setGameState(updated);
-
-          // After human places, run AI setup turns
           if (updated.currentPlayer !== humanId && updated.phase !== 'ended') {
             updated = await runAiTurns(updated);
           }
@@ -120,7 +199,7 @@ export default function App() {
           const updated = await api.placeTroops(gameState.id, territoryId, 1);
           setGameState(updated);
           if (updated.troopsToDeploy === 0) {
-            addToast('All troops deployed! Attack phase begins.', 'success');
+            addToast('All troops deployed! Now attack or end attack phase.', 'success');
           }
         } catch (e) {
           addToast(e instanceof Error ? e.message : 'Failed to place troops', 'warning');
@@ -130,60 +209,55 @@ export default function App() {
 
       // === ATTACK PHASE ===
       if (gameState.phase === 'attack') {
-        // If no territory selected, select an owned territory with 2+ troops
-        if (!selectedTerritory) {
-          if (territory.owner !== humanId) {
-            addToast('Select one of your territories to attack from', 'warning');
-            return;
-          }
-          if (territory.troops < 2) {
-            addToast('Need at least 2 troops to attack from this territory', 'warning');
-            return;
-          }
-          setSelectedTerritory(territoryId);
-          setAttackTarget(null);
-          return;
-        }
-
-        // If clicking the same selected territory, deselect
-        if (selectedTerritory === territoryId) {
-          clearSelection();
-          return;
-        }
-
-        // If clicking another owned territory, switch selection
+        // Clicking own territory
         if (territory.owner === humanId) {
           if (territory.troops < 2) {
-            addToast('Need at least 2 troops to attack from this territory', 'warning');
+            addToast('Need at least 2 troops to attack from here', 'warning');
             return;
           }
-          setSelectedTerritory(territoryId);
-          setAttackTarget(null);
+          // Select/switch attacker
+          if (selectedTerritory === territoryId) {
+            clearSelection();
+          } else {
+            setSelectedTerritory(territoryId);
+            setAttackTarget(null);
+          }
           return;
         }
 
-        // Clicking an enemy territory - check if adjacent
+        // Clicking enemy territory
+        if (!selectedTerritory) {
+          addToast('First select one of YOUR territories to attack from', 'warning');
+          return;
+        }
+
         const sourceTerr = gameState.territories[selectedTerritory];
         if (!sourceTerr?.neighbors.includes(territoryId)) {
-          addToast('Target must be adjacent to your territory', 'warning');
+          addToast('Target must be adjacent to your selected territory', 'warning');
           return;
         }
 
-        // Set as attack target (dice selection shown in controls panel)
-        setAttackTarget(territoryId);
+        if (attackTarget === territoryId) {
+          // Clicking same target again = attack with max dice (quick repeat attack)
+          doAttack(selectedTerritory, territoryId);
+        } else {
+          // First click on this target = set it and auto-attack with max dice
+          setAttackTarget(territoryId);
+          doAttack(selectedTerritory, territoryId);
+        }
         return;
       }
 
       // === FORTIFY PHASE ===
       if (gameState.phase === 'fortify') {
+        if (territory.owner !== humanId) {
+          addToast('You can only fortify between your own territories', 'warning');
+          return;
+        }
+
         if (!fortifySource) {
-          // Select source
-          if (territory.owner !== humanId) {
-            addToast('Select one of your territories to move troops from', 'warning');
-            return;
-          }
           if (territory.troops < 2) {
-            addToast('Need at least 2 troops to fortify from this territory', 'warning');
+            addToast('Need at least 2 troops to move from here', 'warning');
             return;
           }
           setFortifySource(territoryId);
@@ -191,60 +265,23 @@ export default function App() {
           return;
         }
 
-        // Clicking same source deselects
         if (fortifySource === territoryId) {
           clearSelection();
           return;
         }
 
-        // Clicking another owned territory as target
-        if (territory.owner === humanId && territoryId !== fortifySource) {
-          setFortifyTarget(territoryId);
-          return;
-        }
-
-        // Clicking enemy territory in fortify - ignore
-        if (territory.owner !== humanId) {
-          addToast('You can only fortify to your own territories', 'warning');
-          return;
-        }
+        setFortifyTarget(territoryId);
       }
     },
-    [gameState, aiThinking, selectedTerritory, attackTarget, fortifySource, api, addToast, clearSelection, runAiTurns],
+    [gameState, aiThinking, attackPending, selectedTerritory, attackTarget, fortifySource, api, addToast, clearSelection, runAiTurns, doAttack],
   );
 
-  const handleAttack = useCallback(
+  const handleAttackWithDice = useCallback(
     async (dice: number) => {
-      if (!gameState || !selectedTerritory || !attackTarget) return;
-      try {
-        const updated = await api.attack(gameState.id, selectedTerritory, attackTarget, dice);
-        setGameState(updated);
-
-        if (updated.lastAttackResult?.conquered) {
-          addToast(
-            `Conquered ${updated.territories[attackTarget]?.name}!`,
-            'success'
-          );
-          // Clear attack target after conquering
-          setAttackTarget(null);
-          // If the source territory now has < 2 troops, deselect it too
-          if ((updated.territories[selectedTerritory]?.troops || 0) < 2) {
-            setSelectedTerritory(null);
-          }
-        }
-
-        if (updated.phase === 'ended') {
-          addToast(
-            `${updated.players.find((p) => p.id === updated.winner)?.name} wins the game!`,
-            'success'
-          );
-          clearSelection();
-        }
-      } catch (e) {
-        addToast(e instanceof Error ? e.message : 'Attack failed', 'warning');
-      }
+      if (!selectedTerritory || !attackTarget) return;
+      doAttack(selectedTerritory, attackTarget, dice);
     },
-    [gameState, selectedTerritory, attackTarget, api, addToast, clearSelection],
+    [selectedTerritory, attackTarget, doAttack],
   );
 
   const handleEndPhase = useCallback(async () => {
@@ -254,7 +291,6 @@ export default function App() {
       setGameState(updated);
       clearSelection();
 
-      // Check if next player is AI
       const humanId = updated.players.find((p) => !p.isAI)?.id;
       if (updated.currentPlayer !== humanId && updated.phase !== 'ended') {
         updated = await runAiTurns(updated);
@@ -273,11 +309,9 @@ export default function App() {
         clearSelection();
         addToast(`Moved ${troops} troops`, 'info');
 
-        // After fortify, end the phase
         updated = await api.endPhase(updated.id);
         setGameState(updated);
 
-        // Check if next player is AI
         const humanId = updated.players.find((p) => !p.isAI)?.id;
         if (updated.currentPlayer !== humanId && updated.phase !== 'ended') {
           updated = await runAiTurns(updated);
@@ -321,7 +355,6 @@ export default function App() {
     }
 
     if (gameState.phase === 'fortify' && fortifySource && !fortifyTarget) {
-      // Show all owned territories as potential targets (actual connection check done by backend)
       for (const [tid, t] of Object.entries(gameState.territories)) {
         if (t.owner === humanId && tid !== fortifySource) {
           validTargets.push(tid);
@@ -336,9 +369,26 @@ export default function App() {
     return <SetupScreen onGameStart={handleGameStart} />;
   }
 
+  const currentPlayer = gameState.players.find((p) => p.id === gameState.currentPlayer);
+  const isHumanTurn = currentPlayer && !currentPlayer.isAI;
+
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: '#1a1a2e' }}>
       <ToastContainer toasts={toasts} onRemove={removeToast} />
+
+      {/* Instruction bar */}
+      {instructionText && isHumanTurn && !aiThinking && (
+        <div
+          className="px-4 py-2 text-center text-sm font-medium border-b flex-shrink-0"
+          style={{
+            background: 'linear-gradient(90deg, rgba(15,52,96,0.9), rgba(22,33,62,0.9))',
+            borderColor: 'rgba(233,69,96,0.3)',
+            color: '#e0e0e0',
+          }}
+        >
+          {instructionText}
+        </div>
+      )}
 
       {/* AI thinking overlay */}
       {aiThinking && (
@@ -349,7 +399,9 @@ export default function App() {
           >
             <div className="flex items-center gap-3">
               <div className="w-5 h-5 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
-              <span className="text-white font-semibold">AI is thinking...</span>
+              <span className="text-white font-semibold">
+                {currentPlayer?.name || 'AI'} is thinking...
+              </span>
             </div>
           </div>
         </div>
@@ -393,6 +445,7 @@ export default function App() {
           <Map
             gameState={gameState}
             selectedTerritory={selectedTerritory || fortifySource}
+            attackTarget={attackTarget}
             validTargets={validTargets}
             onTerritoryClick={handleTerritoryClick}
           />
@@ -400,7 +453,6 @@ export default function App() {
 
         {/* Side panel - 30% */}
         <div className="flex-[3] min-w-[280px] max-w-[380px] flex flex-col border-l border-gray-700/30">
-          {/* Controls - top portion */}
           <div className="flex-[6] min-h-0 overflow-y-auto">
             <GameControls
               gameState={gameState}
@@ -408,14 +460,12 @@ export default function App() {
               onTradeCards={handleTradeCards}
               selectedTerritory={selectedTerritory}
               attackTarget={attackTarget}
-              onAttack={handleAttack}
+              onAttack={handleAttackWithDice}
               onFortify={handleFortify}
               fortifySource={fortifySource}
               fortifyTarget={fortifyTarget}
             />
           </div>
-
-          {/* History - bottom portion */}
           <div className="flex-[4] min-h-0 border-t border-gray-700/30">
             <HistoryPanel log={gameState.log} />
           </div>

@@ -46,15 +46,13 @@ export function useGameApi() {
     });
 
   const tradeCards = (id: string, cardIndices: number[]): Promise<GameState> =>
-    apiFetch<GameState>(`/api/game/${id}/trade-cards`, {
+    apiFetch<GameState>(`/api/game/${id}/cards/trade`, {
       method: 'POST',
       body: JSON.stringify({ cardIndices }),
     });
 
   const aiTurn = (id: string): Promise<GameState> =>
-    apiFetch<GameState>(`/api/game/${id}/ai-turn`, {
-      method: 'POST',
-    });
+    apiFetch<GameState>(`/api/game/${id}/ai-turn`);
 
   return { createGame, getGame, placeTroops, attack, fortify, endPhase, tradeCards, aiTurn };
 }

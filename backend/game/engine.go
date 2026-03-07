@@ -283,6 +283,11 @@ func (e *GameEngine) Attack(state *models.GameState, from, to string, attackerDi
 		return nil, fmt.Errorf("cannot attack during %s phase", state.Phase)
 	}
 
+	// Must resolve pending conquest before attacking again
+	if state.PendingConquest != nil {
+		return nil, fmt.Errorf("must resolve troop movement into conquered territory first")
+	}
+
 	fromT, ok := state.Territories[from]
 	if !ok {
 		return nil, fmt.Errorf("territory %s does not exist", from)
@@ -343,9 +348,24 @@ func (e *GameEngine) Attack(state *models.GameState, from, to string, attackerDi
 		conquered = true
 		defenderID := toT.Owner
 		toT.Owner = state.CurrentPlayer
+		// Move minimum troops (dice count) into conquered territory
 		toT.Troops = attackerDice
 		fromT.Troops -= attackerDice
 		state.ConqueredThisTurn = true
+
+		// Set pending conquest so player can move more troops in
+		maxAdditional := fromT.Troops - 1 // must leave at least 1
+		if maxAdditional < 0 {
+			maxAdditional = 0
+		}
+		if maxAdditional > 0 {
+			state.PendingConquest = &models.PendingConquest{
+				From:      from,
+				To:        to,
+				MinTroops: attackerDice,
+				MaxTroops: maxAdditional,
+			}
+		}
 
 		state.Log = append(state.Log, models.LogEntry{
 			Turn:    state.Turn,
@@ -391,6 +411,37 @@ func (e *GameEngine) Attack(state *models.GameState, from, to string, attackerDi
 	}
 
 	return result, nil
+}
+
+// MoveAfterConquest moves additional troops into a just-conquered territory.
+func (e *GameEngine) MoveAfterConquest(state *models.GameState, troops int) error {
+	if state.PendingConquest == nil {
+		return fmt.Errorf("no pending conquest to resolve")
+	}
+
+	pc := state.PendingConquest
+	if troops < 0 || troops > pc.MaxTroops {
+		return fmt.Errorf("can move 0 to %d additional troops", pc.MaxTroops)
+	}
+
+	if troops > 0 {
+		fromT := state.Territories[pc.From]
+		toT := state.Territories[pc.To]
+		fromT.Troops -= troops
+		toT.Troops += troops
+		state.Territories[pc.From] = fromT
+		state.Territories[pc.To] = toT
+
+		player := e.getPlayer(state, state.CurrentPlayer)
+		state.Log = append(state.Log, models.LogEntry{
+			Turn:    state.Turn,
+			Player:  state.CurrentPlayer,
+			Message: fmt.Sprintf("%s moved %d additional troop(s) into %s", player.Name, troops, toT.Name),
+		})
+	}
+
+	state.PendingConquest = nil
+	return nil
 }
 
 // Fortify moves troops between connected owned territories.
@@ -457,6 +508,8 @@ func (e *GameEngine) EndPhase(state *models.GameState) error {
 		})
 
 	case models.PhaseAttack:
+		// Auto-resolve any pending conquest (move 0 additional)
+		state.PendingConquest = nil
 		state.Phase = models.PhaseFortify
 		state.Log = append(state.Log, models.LogEntry{
 			Turn:    state.Turn,

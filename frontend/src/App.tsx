@@ -57,7 +57,9 @@ export default function App() {
     } else if (gameState.phase === 'place') {
       setInstructionText(`Click your territories to deploy troops (${gameState.troopsToDeploy} remaining)`);
     } else if (gameState.phase === 'attack') {
-      if (!selectedTerritory) {
+      if (gameState.pendingConquest) {
+        setInstructionText(`Conquered! Move additional troops in (up to ${gameState.pendingConquest.maxTroops} more)`);
+      } else if (!selectedTerritory) {
         setInstructionText('Select a territory with 2+ troops to attack from, or End Attack');
       } else if (!attackTarget) {
         setInstructionText('Now click an adjacent enemy territory to attack');
@@ -117,6 +119,11 @@ export default function App() {
   const doAttack = useCallback(
     async (from: string, to: string, dice?: number) => {
       if (!gameState) return;
+      // Block if pending conquest exists
+      if (gameState.pendingConquest) {
+        addToast('Move troops into conquered territory first', 'warning');
+        return;
+      }
       const fromTerr = gameState.territories[from];
       const maxDice = Math.min(3, (fromTerr?.troops || 1) - 1);
       const attackDice = dice || maxDice;
@@ -129,15 +136,16 @@ export default function App() {
 
         if (updated.lastAttackResult?.conquered) {
           addToast(`Conquered ${updated.territories[to]?.name}!`, 'success');
-          // After conquest, clear target but keep source only if it still has troops
-          setAttackTarget(null);
-          const newSourceTroops = updated.territories[from]?.troops || 0;
-          if (newSourceTroops < 2) {
-            setSelectedTerritory(null);
+          // If there's a pending conquest (can move more troops), keep UI in conquest mode
+          // Otherwise clear targets
+          if (!updated.pendingConquest) {
+            setAttackTarget(null);
+            const newSourceTroops = updated.territories[from]?.troops || 0;
+            if (newSourceTroops < 2) {
+              setSelectedTerritory(null);
+            }
           }
         } else {
-          // Attack didn't conquer - keep both selected so player can attack again
-          // But update if source now has too few troops
           const newSourceTroops = updated.territories[from]?.troops || 0;
           if (newSourceTroops < 2) {
             clearSelection();
@@ -158,9 +166,37 @@ export default function App() {
     [gameState, api, addToast, clearSelection],
   );
 
+  // Move additional troops after conquest
+  const handleConquestMove = useCallback(
+    async (troops: number) => {
+      if (!gameState) return;
+      try {
+        const updated = await api.moveAfterConquest(gameState.id, troops);
+        setGameState(updated);
+        // Clear attack selection after moving troops
+        setAttackTarget(null);
+        if (selectedTerritory) {
+          const newSourceTroops = updated.territories[selectedTerritory]?.troops || 0;
+          if (newSourceTroops < 2) {
+            setSelectedTerritory(null);
+          }
+        }
+      } catch (e) {
+        addToast(e instanceof Error ? e.message : 'Failed to move troops', 'warning');
+      }
+    },
+    [gameState, api, addToast, selectedTerritory],
+  );
+
   const handleTerritoryClick = useCallback(
     async (territoryId: string) => {
       if (!gameState || aiThinking || attackPending) return;
+
+      // Block territory clicks during pending conquest
+      if (gameState.pendingConquest) {
+        addToast('Move troops into conquered territory first (use panel on right)', 'warning');
+        return;
+      }
 
       const territory = gameState.territories[territoryId];
       if (!territory) return;
@@ -461,6 +497,7 @@ export default function App() {
               selectedTerritory={selectedTerritory}
               attackTarget={attackTarget}
               onAttack={handleAttackWithDice}
+              onConquestMove={handleConquestMove}
               onFortify={handleFortify}
               fortifySource={fortifySource}
               fortifyTarget={fortifyTarget}

@@ -46,6 +46,15 @@ type GameState struct {
 	CardTradeCount int                  `json:"cardTradeCount"`
 	ConqueredThisTurn bool             `json:"conqueredThisTurn"`
 	LastAttackResult *AttackResult      `json:"lastAttackResult,omitempty"`
+	PendingConquest  *PendingConquest   `json:"pendingConquest,omitempty"`
+}
+
+// PendingConquest tracks a conquest where the player can still move more troops in
+type PendingConquest struct {
+	From      string `json:"from"`
+	To        string `json:"to"`
+	MinTroops int    `json:"minTroops"` // already moved (the dice count)
+	MaxTroops int    `json:"maxTroops"` // max additional troops that can be moved
 }
 
 // Card represents a Risk card
@@ -102,6 +111,11 @@ type FortifyRequest struct {
 // CardTradeRequest is the request body for trading cards
 type CardTradeRequest struct {
 	CardIndices [3]int `json:"cardIndices"`
+}
+
+// MoveAfterConquestRequest is the request body for moving additional troops after conquest
+type MoveAfterConquestRequest struct {
+	Troops int `json:"troops"` // additional troops to move (on top of what's already moved)
 }
 
 // ContinentBonus defines the troop bonus for controlling a continent

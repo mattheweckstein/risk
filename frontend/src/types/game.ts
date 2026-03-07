@@ -37,6 +37,14 @@ export interface GameState {
   cardTradeCount: number;
   conqueredThisTurn: boolean;
   lastAttackResult?: AttackResult;
+  pendingConquest?: PendingConquest;
+}
+
+export interface PendingConquest {
+  from: string;
+  to: string;
+  minTroops: number;
+  maxTroops: number;
 }
 
 export interface AttackResult {

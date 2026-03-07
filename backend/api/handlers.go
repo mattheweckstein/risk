@@ -50,6 +50,7 @@ func (s *Server) Router() chi.Router {
 		r.Get("/{id}", s.handleGetGame)
 		r.Post("/{id}/place", s.handlePlace)
 		r.Post("/{id}/attack", s.handleAttack)
+		r.Post("/{id}/attack/move", s.handleMoveAfterConquest)
 		r.Post("/{id}/fortify", s.handleFortify)
 		r.Post("/{id}/end-phase", s.handleEndPhase)
 		r.Post("/{id}/cards/trade", s.handleTradeCards)
@@ -136,6 +137,31 @@ func (s *Server) handleAttack(w http.ResponseWriter, r *http.Request) {
 
 	s.mu.Lock()
 	_, err := s.engine.Attack(state, req.From, req.To, req.AttackerDice)
+	s.mu.Unlock()
+
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, state)
+}
+
+func (s *Server) handleMoveAfterConquest(w http.ResponseWriter, r *http.Request) {
+	state, ok := s.getGame(chi.URLParam(r, "id"))
+	if !ok {
+		writeError(w, http.StatusNotFound, "game not found")
+		return
+	}
+
+	var req models.MoveAfterConquestRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	s.mu.Lock()
+	err := s.engine.MoveAfterConquest(state, req.Troops)
 	s.mu.Unlock()
 
 	if err != nil {
@@ -266,10 +292,12 @@ func (s *Server) handleAITurn(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
+		// Clear any pending conquest from AI (AI resolves its own troop movements)
+		state.PendingConquest = nil
+
 		// Advance to next player's turn
 		state.Phase = models.PhaseFortify
 		if err := s.engine.EndPhase(state); err != nil {
-			// If EndPhase fails, just advance manually
 			log.Printf("EndPhase after AI turn failed: %v", err)
 		}
 	}

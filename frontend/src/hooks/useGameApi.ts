@@ -51,8 +51,14 @@ export function useGameApi() {
       body: JSON.stringify({ cardIndices }),
     });
 
+  const moveAfterConquest = (id: string, troops: number): Promise<GameState> =>
+    apiFetch<GameState>(`/api/game/${id}/attack/move`, {
+      method: 'POST',
+      body: JSON.stringify({ troops }),
+    });
+
   const aiTurn = (id: string): Promise<GameState> =>
     apiFetch<GameState>(`/api/game/${id}/ai-turn`);
 
-  return { createGame, getGame, placeTroops, attack, fortify, endPhase, tradeCards, aiTurn };
+  return { createGame, getGame, placeTroops, attack, moveAfterConquest, fortify, endPhase, tradeCards, aiTurn };
 }

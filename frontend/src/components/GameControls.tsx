@@ -9,6 +9,7 @@ interface GameControlsProps {
   selectedTerritory: string | null;
   attackTarget: string | null;
   onAttack: (dice: number) => void;
+  onConquestMove: (troops: number) => void;
   onFortify: (troops: number) => void;
   fortifySource: string | null;
   fortifyTarget: string | null;
@@ -80,6 +81,7 @@ export default function GameControls({
   onTradeCards,
   selectedTerritory,
   attackTarget,
+  onConquestMove,
   onAttack,
   onFortify,
   fortifySource,
@@ -87,6 +89,7 @@ export default function GameControls({
 }: GameControlsProps) {
   const [selectedCards, setSelectedCards] = useState<number[]>([]);
   const [fortifyTroops, setFortifyTroops] = useState(1);
+  const [conquestTroops, setConquestTroops] = useState(0);
 
   const currentPlayer = gameState.players.find((p) => p.id === gameState.currentPlayer);
   const humanPlayer = gameState.players.find((p) => !p.isAI);
@@ -167,8 +170,52 @@ export default function GameControls({
         </div>
       )}
 
+      {/* Conquest troop movement */}
+      {gameState.pendingConquest && isHumanTurn && (
+        <div className="p-3 rounded-lg border-2 border-yellow-500/60" style={{ background: 'rgba(255,215,0,0.1)' }}>
+          <div className="text-sm font-bold text-yellow-400 mb-2">Territory Conquered!</div>
+          <div className="text-xs text-gray-300 mb-1">
+            {gameState.territories[gameState.pendingConquest.from]?.name}
+            <span className="text-yellow-400 mx-2">&#10132;</span>
+            {gameState.territories[gameState.pendingConquest.to]?.name}
+          </div>
+          <div className="text-xs text-gray-400 mb-3">
+            {gameState.pendingConquest.minTroops} troops already moved in.
+            Move up to {gameState.pendingConquest.maxTroops} more.
+          </div>
+          <div className="flex items-center gap-3 mb-3">
+            <button
+              onClick={() => setConquestTroops(Math.max(0, conquestTroops - 1))}
+              className="w-8 h-8 rounded bg-yellow-500/30 text-white font-bold hover:bg-yellow-500/50"
+            >
+              -
+            </button>
+            <span className="text-xl font-bold text-white min-w-[3ch] text-center">{conquestTroops}</span>
+            <button
+              onClick={() => setConquestTroops(Math.min(gameState.pendingConquest!.maxTroops, conquestTroops + 1))}
+              className="w-8 h-8 rounded bg-yellow-500/30 text-white font-bold hover:bg-yellow-500/50"
+            >
+              +
+            </button>
+            <span className="text-xs text-gray-400">/ {gameState.pendingConquest.maxTroops}</span>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                onConquestMove(conquestTroops);
+                setConquestTroops(0);
+              }}
+              className="flex-1 py-2 rounded font-bold text-sm transition-all hover:brightness-125"
+              style={{ background: '#ffd700', color: '#1a1a2e' }}
+            >
+              {conquestTroops > 0 ? `Move ${conquestTroops} More` : 'Continue (Move 0)'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Attack info panel */}
-      {gameState.phase === 'attack' && isHumanTurn && (
+      {gameState.phase === 'attack' && isHumanTurn && !gameState.pendingConquest && (
         <div className="p-3 rounded-lg border" style={{ background: 'rgba(233,69,96,0.08)', borderColor: 'rgba(233,69,96,0.25)' }}>
           {!selectedTerritory && !attackTarget && (
             <div className="text-sm text-gray-300">

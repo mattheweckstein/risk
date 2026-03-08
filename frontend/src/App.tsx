@@ -43,7 +43,12 @@ export default function App() {
     if (savedId) {
       api.getGame(savedId)
         .then((game) => {
-          setGameState(game);
+          if (game.phase === 'ended') {
+            // Don't restore ended games — go straight to setup
+            localStorage.removeItem(GAME_ID_KEY);
+          } else {
+            setGameState(game);
+          }
           setLoading(false);
         })
         .catch(() => {

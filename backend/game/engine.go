@@ -646,6 +646,11 @@ func (e *GameEngine) TradeCards(state *models.GameState, indices [3]int) error {
 	sortedIndices := []int{indices[0], indices[1], indices[2]}
 	sort.Sort(sort.Reverse(sort.IntSlice(sortedIndices)))
 	for _, idx := range sortedIndices {
+		if idx < 0 || idx >= len(currentPlayer.Cards) {
+			return fmt.Errorf("card removal failed: index %d out of range (have %d cards)", idx, len(currentPlayer.Cards))
+		}
+		// Return card to deck
+		state.Deck = append(state.Deck, currentPlayer.Cards[idx])
 		currentPlayer.Cards = append(currentPlayer.Cards[:idx], currentPlayer.Cards[idx+1:]...)
 	}
 

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { GameState, Phase, AttackResult } from '../types/game';
 import { continentTerritories, continentBonuses, continentDisplayNames } from '../data/continents';
 
@@ -105,6 +105,12 @@ export default function GameControls({
 
   const currentPlayer = gameState.players.find((p) => p.id === gameState.currentPlayer);
   const humanPlayer = gameState.players.find((p) => !p.isAI);
+
+  // Reset card selection when card count changes
+  const cardCount = humanPlayer?.cards.length ?? 0;
+  useEffect(() => {
+    setSelectedCards([]);
+  }, [cardCount]);
   const isHumanTurn = currentPlayer && !currentPlayer.isAI;
 
   const continentOwners = Object.entries(continentTerritories).map(([continent, territories]) => {

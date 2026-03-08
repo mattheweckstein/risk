@@ -65,6 +65,7 @@ func (s *Server) Router() chi.Router {
 		r.Post("/{id}/end-phase", s.handleEndPhase)
 		r.Post("/{id}/cards/trade", s.handleTradeCards)
 		r.Get("/{id}/ai-turn", s.handleAITurn)
+		r.Post("/{id}/surrender", s.handleSurrender)
 	})
 
 	return r
@@ -319,6 +320,83 @@ func (s *Server) handleAITurn(w http.ResponseWriter, r *http.Request) {
 			log.Printf("EndPhase after AI turn failed: %v", err)
 		}
 	}
+
+	s.persistGames()
+	writeJSON(w, http.StatusOK, state)
+}
+
+func (s *Server) handleSurrender(w http.ResponseWriter, r *http.Request) {
+	state, ok := s.getGame(chi.URLParam(r, "id"))
+	if !ok {
+		writeError(w, http.StatusNotFound, "game not found")
+		return
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Find the human player
+	var humanIdx int = -1
+	for i, p := range state.Players {
+		if !p.IsAI && p.IsAlive {
+			humanIdx = i
+			break
+		}
+	}
+	if humanIdx == -1 {
+		writeError(w, http.StatusBadRequest, "no human player to surrender")
+		return
+	}
+
+	human := &state.Players[humanIdx]
+	human.IsAlive = false
+
+	// Transfer all human territories to the strongest AI
+	var strongestAI string
+	maxTerr := 0
+	for _, p := range state.Players {
+		if p.IsAI && p.IsAlive {
+			count := 0
+			for _, t := range state.Territories {
+				if t.Owner == p.ID {
+					count++
+				}
+			}
+			if count > maxTerr {
+				maxTerr = count
+				strongestAI = p.ID
+			}
+		}
+	}
+
+	if strongestAI == "" {
+		writeError(w, http.StatusBadRequest, "no AI players alive")
+		return
+	}
+
+	for id, t := range state.Territories {
+		if t.Owner == human.ID {
+			t.Owner = strongestAI
+			state.Territories[id] = t
+		}
+	}
+
+	// Transfer cards
+	for i := range state.Players {
+		if state.Players[i].ID == strongestAI {
+			state.Players[i].Cards = append(state.Players[i].Cards, human.Cards...)
+			break
+		}
+	}
+	human.Cards = nil
+
+	state.Phase = models.PhaseEnded
+	state.Winner = strongestAI
+	state.Log = append(state.Log, models.LogEntry{
+		Turn:    state.Turn,
+		Player:  human.ID,
+		Message: human.Name + " has surrendered!",
+	})
 
 	s.persistGames()
 	writeJSON(w, http.StatusOK, state)

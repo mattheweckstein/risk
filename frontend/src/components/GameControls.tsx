@@ -9,10 +9,16 @@ interface GameControlsProps {
   selectedTerritory: string | null;
   attackTarget: string | null;
   onAttack: (dice: number) => void;
+  onBlitz: () => void;
+  onDeployAll: (territoryId: string) => void;
+  lastPlacedTerritory: string | null;
   onConquestMove: (troops: number) => void;
   onFortify: (troops: number) => void;
   fortifySource: string | null;
   fortifyTarget: string | null;
+  onSurrender: () => void;
+  showSurrenderConfirm: boolean;
+  setShowSurrenderConfirm: (v: boolean) => void;
 }
 
 const phaseLabels: Record<Phase, string> = {
@@ -83,9 +89,15 @@ export default function GameControls({
   attackTarget,
   onConquestMove,
   onAttack,
+  onBlitz,
+  onDeployAll,
+  lastPlacedTerritory,
   onFortify,
   fortifySource,
   fortifyTarget,
+  onSurrender,
+  showSurrenderConfirm,
+  setShowSurrenderConfirm,
 }: GameControlsProps) {
   const [selectedCards, setSelectedCards] = useState<number[]>([]);
   const [fortifyTroops, setFortifyTroops] = useState(1);
@@ -166,7 +178,18 @@ export default function GameControls({
       {(gameState.phase === 'place' || gameState.phase === 'setup') && isHumanTurn && (
         <div className="p-3 rounded-lg" style={{ background: 'rgba(233, 69, 96, 0.15)' }}>
           <div className="text-xs text-gray-400 uppercase mb-1">Troops to Deploy</div>
-          <div className="text-3xl font-bold text-white">{gameState.troopsToDeploy}</div>
+          <div className="flex items-center justify-between">
+            <div className="text-3xl font-bold text-white">{gameState.troopsToDeploy}</div>
+            {gameState.phase === 'place' && gameState.troopsToDeploy > 1 && lastPlacedTerritory && (
+              <button
+                onClick={() => onDeployAll(lastPlacedTerritory)}
+                className="px-3 py-1.5 rounded font-bold text-xs transition-all hover:brightness-125"
+                style={{ background: '#e94560', color: 'white' }}
+              >
+                All to {gameState.territories[lastPlacedTerritory]?.name}
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -267,6 +290,18 @@ export default function GameControls({
                   </button>
                 ))}
               </div>
+              <button
+                onClick={onBlitz}
+                disabled={maxAttackDice < 1}
+                className="w-full mt-2 py-2 rounded font-bold text-sm disabled:opacity-30 disabled:cursor-not-allowed hover:brightness-125 transition-all border"
+                style={{
+                  background: 'rgba(233,69,96,0.2)',
+                  borderColor: '#e94560',
+                  color: '#e94560',
+                }}
+              >
+                Blitz (Auto-Attack)
+              </button>
             </>
           )}
         </div>
@@ -470,6 +505,39 @@ export default function GameControls({
           ))}
         </div>
       </div>
+
+      {/* Surrender */}
+      {gameState.phase !== 'ended' && gameState.phase !== 'setup' && (
+        <div className="mt-auto pt-2">
+          {showSurrenderConfirm ? (
+            <div className="p-3 rounded-lg border border-red-500/40" style={{ background: 'rgba(233,69,96,0.1)' }}>
+              <div className="text-sm text-gray-300 mb-2">Are you sure you want to surrender?</div>
+              <div className="flex gap-2">
+                <button
+                  onClick={onSurrender}
+                  className="flex-1 py-2 rounded font-bold text-sm"
+                  style={{ background: '#e94560', color: 'white' }}
+                >
+                  Yes, Surrender
+                </button>
+                <button
+                  onClick={() => setShowSurrenderConfirm(false)}
+                  className="flex-1 py-2 rounded font-bold text-sm border border-gray-600 text-gray-300 hover:bg-gray-700/30"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowSurrenderConfirm(true)}
+              className="w-full py-2 rounded text-xs uppercase tracking-wide text-gray-500 hover:text-gray-300 hover:bg-gray-700/20 transition-all"
+            >
+              Surrender
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

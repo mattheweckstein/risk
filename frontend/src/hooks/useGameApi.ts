@@ -60,5 +60,8 @@ export function useGameApi() {
   const aiTurn = (id: string): Promise<GameState> =>
     apiFetch<GameState>(`/api/game/${id}/ai-turn`);
 
-  return { createGame, getGame, placeTroops, attack, moveAfterConquest, fortify, endPhase, tradeCards, aiTurn };
+  const surrender = (id: string): Promise<GameState> =>
+    apiFetch<GameState>(`/api/game/${id}/surrender`, { method: 'POST' });
+
+  return { createGame, getGame, placeTroops, attack, moveAfterConquest, fortify, endPhase, tradeCards, aiTurn, surrender };
 }

@@ -24,6 +24,7 @@ export default function App() {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [instructionText, setInstructionText] = useState('');
   const [loading, setLoading] = useState(true);
+  const [lastPlacedTerritory, setLastPlacedTerritory] = useState<string | null>(null);
   const toastIdRef = useRef(0);
   const api = useGameApi();
 
@@ -144,6 +145,21 @@ export default function App() {
     [clearSelection, runAiTurns],
   );
 
+  // Deploy all remaining troops to a territory
+  const handleDeployAll = useCallback(
+    async (territoryId: string) => {
+      if (!gameState || gameState.troopsToDeploy <= 0) return;
+      try {
+        const updated = await api.placeTroops(gameState.id, territoryId, gameState.troopsToDeploy);
+        setGameState(updated);
+        addToast('All troops deployed!', 'success');
+      } catch (e) {
+        addToast(e instanceof Error ? e.message : 'Failed to deploy', 'warning');
+      }
+    },
+    [gameState, api, addToast],
+  );
+
   // Execute attack with max dice by default
   const doAttack = useCallback(
     async (from: string, to: string, dice?: number) => {
@@ -193,6 +209,52 @@ export default function App() {
       }
     },
     [gameState, api, addToast, clearSelection],
+  );
+
+  // Blitz: auto-attack with max dice until win or can't continue
+  const handleBlitz = useCallback(
+    async () => {
+      if (!gameState || !selectedTerritory || !attackTarget) return;
+      const from = selectedTerritory;
+      const to = attackTarget;
+      setAttackPending(true);
+      try {
+        let current = gameState;
+        while (true) {
+          const fromTerr = current.territories[from];
+          const toTerr = current.territories[to];
+          if (!fromTerr || !toTerr) break;
+          const maxDice = Math.min(3, (fromTerr.troops || 1) - 1);
+          if (maxDice < 1) break;
+          // Stop if we already own the target (conquered)
+          if (toTerr.owner === current.players.find((p) => !p.isAI)?.id) break;
+
+          const updated = await api.attack(current.id, from, to, maxDice);
+          current = updated;
+          setGameState(updated);
+
+          if (updated.lastAttackResult?.conquered) {
+            addToast(`Conquered ${updated.territories[to]?.name}!`, 'success');
+            if (!updated.pendingConquest) {
+              setAttackTarget(null);
+              if ((updated.territories[from]?.troops || 0) < 2) setSelectedTerritory(null);
+            }
+            break;
+          }
+          if (updated.phase === 'ended') {
+            const winner = updated.players.find((p) => p.id === updated.winner);
+            addToast(`${winner?.name} wins the game!`, 'success');
+            clearSelection();
+            break;
+          }
+        }
+      } catch (e) {
+        addToast(e instanceof Error ? e.message : 'Blitz failed', 'warning');
+      } finally {
+        setAttackPending(false);
+      }
+    },
+    [gameState, selectedTerritory, attackTarget, api, addToast, clearSelection],
   );
 
   // Move additional troops after conquest
@@ -263,7 +325,9 @@ export default function App() {
         try {
           const updated = await api.placeTroops(gameState.id, territoryId, 1);
           setGameState(updated);
+          setLastPlacedTerritory(territoryId);
           if (updated.troopsToDeploy === 0) {
+            setLastPlacedTerritory(null);
             addToast('All troops deployed! Now attack or end attack phase.', 'success');
           }
         } catch (e) {
@@ -407,6 +471,19 @@ export default function App() {
     [gameState, api, addToast],
   );
 
+  const [showSurrenderConfirm, setShowSurrenderConfirm] = useState(false);
+
+  const handleSurrender = useCallback(async () => {
+    if (!gameState) return;
+    try {
+      const updated = await api.surrender(gameState.id);
+      setGameState(updated);
+      setShowSurrenderConfirm(false);
+    } catch (e) {
+      addToast(e instanceof Error ? e.message : 'Surrender failed', 'warning');
+    }
+  }, [gameState, api, addToast]);
+
   // Compute valid targets for visual feedback
   const validTargets: string[] = [];
   if (gameState) {
@@ -540,10 +617,16 @@ export default function App() {
               selectedTerritory={selectedTerritory}
               attackTarget={attackTarget}
               onAttack={handleAttackWithDice}
+              onBlitz={handleBlitz}
+              onDeployAll={handleDeployAll}
+              lastPlacedTerritory={lastPlacedTerritory}
               onConquestMove={handleConquestMove}
               onFortify={handleFortify}
               fortifySource={fortifySource}
               fortifyTarget={fortifyTarget}
+              onSurrender={handleSurrender}
+              showSurrenderConfirm={showSurrenderConfirm}
+              setShowSurrenderConfirm={setShowSurrenderConfirm}
             />
           </div>
           <div className="flex-[4] min-h-0 border-t border-gray-700/30">

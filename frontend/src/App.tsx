@@ -115,12 +115,21 @@ export default function App() {
       let current = state;
       const humanId = current.players.find((p) => !p.isAI)?.id;
 
-      while (current.phase !== 'ended' && current.currentPlayer !== humanId) {
+      let safety = 0;
+      while (current.phase !== 'ended' && current.currentPlayer !== humanId && safety < 20) {
+        safety++;
         setAiThinking(true);
-        await delay(500);
+        await delay(400);
         try {
+          const prev = current.currentPlayer;
           current = await api.aiTurn(current.id);
           setGameState(current);
+          // If the AI turn didn't advance the player, something is wrong
+          if (current.currentPlayer === prev && current.phase !== 'ended') {
+            console.error('AI turn did not advance player, breaking');
+            addToast('AI turn stuck - try refreshing', 'warning');
+            break;
+          }
         } catch (e) {
           console.error('AI turn failed:', e);
           addToast('AI turn failed - check console', 'warning');

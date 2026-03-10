@@ -1133,3 +1133,164 @@ func TestIsConnectedNotConnected(t *testing.T) {
 		t.Error("expected disconnected territories to not be connected")
 	}
 }
+
+// === TestFortify Classic vs Free Modes ===
+
+// setupFortifyChain creates a game in fortify phase where player_0 owns a chain:
+// alaska -> northwest_territory -> ontario (all owned by player_0, rest by player_1).
+// alaska is NOT adjacent to ontario, but they are connected through northwest_territory.
+func setupFortifyChain(freeFortify bool) *models.GameState {
+	state := newTestGameInPhase(models.PhaseFortify)
+	state.FreeFortify = freeFortify
+
+	// Give all territories to player_1
+	for id, terr := range state.Territories {
+		terr.Owner = "player_1"
+		terr.Troops = 3
+		state.Territories[id] = terr
+	}
+
+	// Give player_0 the chain: alaska -> northwest_territory -> ontario
+	for _, tid := range []string{"alaska", "northwest_territory", "ontario"} {
+		terr := state.Territories[tid]
+		terr.Owner = "player_0"
+		terr.Troops = 5
+		state.Territories[tid] = terr
+	}
+
+	return state
+}
+
+func TestFortifyClassicAdjacentAllowed(t *testing.T) {
+	state := setupFortifyChain(false) // classic mode
+	e := NewGameEngine()
+
+	// alaska -> northwest_territory is adjacent — should work
+	err := e.Fortify(state, "alaska", "northwest_territory", 2)
+	if err != nil {
+		t.Fatalf("classic fortify between adjacent territories should work: %v", err)
+	}
+	if state.Territories["alaska"].Troops != 3 {
+		t.Errorf("expected 3 troops on alaska, got %d", state.Territories["alaska"].Troops)
+	}
+	if state.Territories["northwest_territory"].Troops != 7 {
+		t.Errorf("expected 7 troops on northwest_territory, got %d", state.Territories["northwest_territory"].Troops)
+	}
+}
+
+func TestFortifyClassicNonAdjacentBlocked(t *testing.T) {
+	state := setupFortifyChain(false) // classic mode
+	e := NewGameEngine()
+
+	// alaska -> ontario: connected through northwest_territory but NOT adjacent
+	err := e.Fortify(state, "alaska", "ontario", 2)
+	if err == nil {
+		t.Error("classic fortify should NOT allow non-adjacent moves even if connected")
+	}
+}
+
+func TestFortifyFreeConnectedAllowed(t *testing.T) {
+	state := setupFortifyChain(true) // free fortify mode
+	e := NewGameEngine()
+
+	// alaska -> ontario: not adjacent but connected through northwest_territory
+	err := e.Fortify(state, "alaska", "ontario", 2)
+	if err != nil {
+		t.Fatalf("free fortify between connected territories should work: %v", err)
+	}
+	if state.Territories["alaska"].Troops != 3 {
+		t.Errorf("expected 3 troops on alaska, got %d", state.Territories["alaska"].Troops)
+	}
+	if state.Territories["ontario"].Troops != 7 {
+		t.Errorf("expected 7 troops on ontario, got %d", state.Territories["ontario"].Troops)
+	}
+}
+
+func TestFortifyFreeDisconnectedBlocked(t *testing.T) {
+	state := setupFortifyChain(true) // free fortify mode
+	e := NewGameEngine()
+
+	// Add argentina owned by player_0 but NOT connected to alaska
+	arg := state.Territories["argentina"]
+	arg.Owner = "player_0"
+	arg.Troops = 3
+	state.Territories["argentina"] = arg
+
+	err := e.Fortify(state, "alaska", "argentina", 2)
+	if err == nil {
+		t.Error("free fortify should NOT allow moves between disconnected territories")
+	}
+}
+
+func TestFortifyFreeMultipleMovesAllowed(t *testing.T) {
+	state := setupFortifyChain(true) // free fortify mode
+	e := NewGameEngine()
+
+	// First move: alaska -> ontario
+	err := e.Fortify(state, "alaska", "ontario", 2)
+	if err != nil {
+		t.Fatalf("first free fortify move should work: %v", err)
+	}
+
+	// Second move: northwest_territory -> ontario (still in fortify phase)
+	err = e.Fortify(state, "northwest_territory", "ontario", 2)
+	if err != nil {
+		t.Fatalf("second free fortify move should work: %v", err)
+	}
+
+	if state.Territories["ontario"].Troops != 9 { // 5 + 2 + 2
+		t.Errorf("expected 9 troops on ontario after two moves, got %d", state.Territories["ontario"].Troops)
+	}
+}
+
+func TestFortifyFreeAdjacentAlsoWorks(t *testing.T) {
+	state := setupFortifyChain(true) // free fortify mode
+	e := NewGameEngine()
+
+	// Adjacent move should still work in free mode
+	err := e.Fortify(state, "alaska", "northwest_territory", 2)
+	if err != nil {
+		t.Fatalf("free fortify adjacent move should work: %v", err)
+	}
+}
+
+func TestFortifyClassicToEnemyBlocked(t *testing.T) {
+	state := setupFortifyChain(false)
+	e := NewGameEngine()
+
+	// kamchatka is adjacent to alaska but owned by player_1
+	err := e.Fortify(state, "alaska", "kamchatka", 2)
+	if err == nil {
+		t.Error("should not be able to fortify into enemy territory")
+	}
+}
+
+func TestFortifyFreeToEnemyBlocked(t *testing.T) {
+	state := setupFortifyChain(true)
+	e := NewGameEngine()
+
+	err := e.Fortify(state, "alaska", "kamchatka", 2)
+	if err == nil {
+		t.Error("should not be able to fortify into enemy territory even in free mode")
+	}
+}
+
+func TestFortifyMustLeaveOneTroop(t *testing.T) {
+	state := setupFortifyChain(true)
+	e := NewGameEngine()
+
+	// Try to move all 5 troops (must leave 1)
+	err := e.Fortify(state, "alaska", "northwest_territory", 5)
+	if err == nil {
+		t.Error("should not be able to move all troops, must leave at least 1")
+	}
+
+	// Moving 4 should work (leaves 1)
+	err = e.Fortify(state, "alaska", "northwest_territory", 4)
+	if err != nil {
+		t.Fatalf("moving 4 of 5 troops should work: %v", err)
+	}
+	if state.Territories["alaska"].Troops != 1 {
+		t.Errorf("expected 1 troop left on alaska, got %d", state.Territories["alaska"].Troops)
+	}
+}

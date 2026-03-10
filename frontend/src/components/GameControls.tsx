@@ -10,6 +10,7 @@ interface GameControlsProps {
   attackTarget: string | null;
   onAttack: (dice: number) => void;
   onBlitz: () => void;
+  onMaxAggression: () => void;
   onDeployAll: (territoryId: string) => void;
   lastPlacedTerritory: string | null;
   onConquestMove: (troops: number) => void;
@@ -90,6 +91,7 @@ export default function GameControls({
   onConquestMove,
   onAttack,
   onBlitz,
+  onMaxAggression,
   onDeployAll,
   lastPlacedTerritory,
   onFortify,
@@ -245,6 +247,16 @@ export default function GameControls({
             >
               {conquestTroops > 0 ? `Move ${conquestTroops} More` : 'Continue (Move 0)'}
             </button>
+            <button
+              onClick={() => {
+                onConquestMove(gameState.pendingConquest!.maxTroops);
+                setConquestTroops(0);
+              }}
+              className="py-2 px-3 rounded font-bold text-sm transition-all hover:brightness-125"
+              style={{ background: '#e94560', color: 'white' }}
+            >
+              Move Max
+            </button>
           </div>
         </div>
       )}
@@ -296,18 +308,32 @@ export default function GameControls({
                   </button>
                 ))}
               </div>
-              <button
-                onClick={onBlitz}
-                disabled={maxAttackDice < 1}
-                className="w-full mt-2 py-2 rounded font-bold text-sm disabled:opacity-30 disabled:cursor-not-allowed hover:brightness-125 transition-all border"
-                style={{
-                  background: 'rgba(233,69,96,0.2)',
-                  borderColor: '#e94560',
-                  color: '#e94560',
-                }}
-              >
-                Blitz (Auto-Attack)
-              </button>
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={onBlitz}
+                  disabled={maxAttackDice < 1}
+                  className="flex-1 py-2 rounded font-bold text-sm disabled:opacity-30 disabled:cursor-not-allowed hover:brightness-125 transition-all border"
+                  style={{
+                    background: 'rgba(233,69,96,0.2)',
+                    borderColor: '#e94560',
+                    color: '#e94560',
+                  }}
+                >
+                  Blitz
+                </button>
+                <button
+                  onClick={onMaxAggression}
+                  disabled={maxAttackDice < 1}
+                  className="flex-1 py-2 rounded font-bold text-sm disabled:opacity-30 disabled:cursor-not-allowed hover:brightness-125 transition-all border"
+                  style={{
+                    background: 'rgba(233,69,96,0.4)',
+                    borderColor: '#e94560',
+                    color: 'white',
+                  }}
+                >
+                  Max Aggression
+                </button>
+              </div>
             </>
           )}
         </div>

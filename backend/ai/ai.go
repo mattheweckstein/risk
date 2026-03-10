@@ -189,11 +189,15 @@ func executePlacement(state *models.GameState, playerID string) error {
 // tradeCards handles card trading for the AI.
 func tradeCards(state *models.GameState, player *models.Player) {
 	for len(player.Cards) >= 4 {
+		// Strategic timing: if we have exactly 4 cards and the next bonus is small,
+		// hold until 5 (forced trade) to let the global trade count go up
+		if len(player.Cards) == 4 && state.CardTradeCount < 3 {
+			// Early game — holding is worth it since bonus values increase
+			break
+		}
+
 		indices, found := findValidCardSet(player.Cards)
 		if !found {
-			if len(player.Cards) >= 5 {
-				break
-			}
 			break
 		}
 
@@ -294,14 +298,9 @@ func executeAttacks(state *models.GameState, playerID string) {
 			return candidates[i].score > candidates[j].score
 		})
 
-		// Pick the best attack -- only 5% skip chance, and never skip
-		// high-value attacks (continent completion, player elimination)
+		// Pick the best attack — almost never skip a scored attack
 		attacked := false
 		for _, c := range candidates {
-			// Only skip low-value attacks occasionally
-			if c.score < 30 && rand.Float64() < 0.05 {
-				continue
-			}
 
 			from := state.Territories[c.fromID]
 			to := state.Territories[c.toID]
@@ -360,6 +359,22 @@ func executeAttacks(state *models.GameState, playerID string) {
 func buildAttackCandidates(state *models.GameState, playerID string) []attackCandidate {
 	var candidates []attackCandidate
 
+	// Are we behind the leader? If so, be more aggressive
+	myStrength := getPlayerStrength(state, playerID)
+	leaderID := getLeaderID(state)
+	leaderStrength := getPlayerStrength(state, leaderID)
+	behindLeader := leaderID != playerID && leaderStrength > myStrength
+	strengthGap := leaderStrength - myStrength
+
+	// Base ratio adjustment: the further behind, the more aggressive
+	aggressionMod := 0.0
+	if behindLeader {
+		aggressionMod = strengthGap * 0.01 // Up to ~0.3 reduction in required ratio
+		if aggressionMod > 0.3 {
+			aggressionMod = 0.3
+		}
+	}
+
 	for _, t := range state.Territories {
 		if t.Owner != playerID || t.Troops < 2 {
 			continue
@@ -376,7 +391,7 @@ func buildAttackCandidates(state *models.GameState, playerID string) []attackCan
 			ratio := float64(attackerTroops) / float64(defenderTroops)
 
 			// Determine minimum ratio based on context
-			minRatio := 1.5 // Default: attack at 1.5x
+			minRatio := 1.4 - aggressionMod // Default: 1.4x, lower when behind
 
 			// Check if this attack would complete a continent
 			wouldComplete := false
@@ -389,14 +404,14 @@ func buildAttackCandidates(state *models.GameState, playerID string) []attackCan
 			}
 			if needed == 1 {
 				wouldComplete = true
-				minRatio = 1.1 // Very aggressive for continent completion
+				minRatio = 1.0 // Very aggressive for continent completion
 			}
 
 			// Check if this would break an opponent's continent
 			wouldBreak := false
 			if ownsContinent(state, continent, n.Owner) {
 				wouldBreak = true
-				minRatio = 1.2
+				minRatio = 1.0 // Always worth breaking a continent
 			}
 
 			// Check if this would eliminate a player
@@ -405,10 +420,21 @@ func buildAttackCandidates(state *models.GameState, playerID string) []attackCan
 			defenderCards := countPlayerCards(state, n.Owner)
 			if defenderCount == 1 {
 				wouldEliminate = true
-				minRatio = 1.0 // Even odds acceptable to eliminate
+				minRatio = 0.9 // Even slightly bad odds acceptable to eliminate
 				if defenderCards >= 3 {
-					minRatio = 0.8 // Worth a gamble for cards
+					minRatio = 0.7 // Worth a real gamble for cards
 				}
+			}
+
+			// Extra aggression against the leader
+			targetingLeader := n.Owner == leaderID && leaderID != playerID
+			if targetingLeader {
+				minRatio -= 0.2
+			}
+
+			// Floor the ratio at 0.6 — don't suicide
+			if minRatio < 0.6 {
+				minRatio = 0.6
 			}
 
 			// Skip if below minimum ratio
@@ -419,16 +445,19 @@ func buildAttackCandidates(state *models.GameState, playerID string) []attackCan
 			// Score the attack using the strategic scorer
 			score := scoreAttack(state, t.ID, nID, playerID)
 
-			// Additional bonuses for the build phase
+			// Additional bonuses
 			if wouldComplete {
 				score += 50
 			}
 			if wouldBreak {
-				score += 30
+				score += 40
 			}
 			if wouldEliminate {
 				score += 40
 			}
+
+			// Leader targeting bonus — all AIs focus the strongest player
+			score += leaderThreatBonus(state, n.Owner, playerID)
 
 			candidates = append(candidates, attackCandidate{
 				fromID: t.ID,
@@ -473,6 +502,13 @@ func executeOneAttack(state *models.GameState, playerID, fromID, toID string) bo
 		isStrategic = true
 	}
 
+	// Attacking the leader is always strategic
+	leaderID := getLeaderID(state)
+	targetingLeader := to.Owner == leaderID && leaderID != playerID
+	if targetingLeader {
+		isStrategic = true
+	}
+
 	for {
 		from := state.Territories[fromID]
 		to = state.Territories[toID]
@@ -483,9 +519,9 @@ func executeOneAttack(state *models.GameState, playerID, fromID, toID string) bo
 		}
 
 		// Determine stop threshold based on strategic value
-		stopRatio := 1.3 // Default: continue while we have 1.3x advantage
+		stopRatio := 1.2 // Default: continue while we have 1.2x advantage
 		if isStrategic {
-			stopRatio = 0.9 // Press harder on strategic attacks
+			stopRatio = 0.8 // Press much harder on strategic attacks
 		}
 
 		if float64(attackerAvailable) < float64(maxInt(1, to.Troops))*stopRatio {
@@ -622,148 +658,149 @@ func drawCard(state *models.GameState, playerID string) {
 
 // executeFortify handles the fortify phase — strategically moves troops
 // toward the most important front lines.
+// In free fortify mode, makes multiple moves to optimize troop distribution.
 func executeFortify(state *models.GameState, playerID string) {
 	name := getPlayerName(state, playerID)
 
-	borders := getBorderTerritories(state, playerID)
-	if len(borders) == 0 {
-		return
+	// In free fortify mode, do up to 5 moves. In classic, do 1.
+	maxMoves := 1
+	if state.FreeFortify {
+		maxMoves = 5
 	}
 
-	// Score all border territories by strategic importance and need
-	type fortifyTarget struct {
-		territory models.Territory
-		score     float64
-		deficit   float64 // how much more troops it needs
-	}
-
-	var targets []fortifyTarget
-	for _, b := range borders {
-		enemyThreat := 0.0
-		for _, nID := range b.Neighbors {
-			if n, ok := state.Territories[nID]; ok && n.Owner != playerID && n.Owner != "" {
-				enemyThreat += float64(n.Troops)
-			}
-		}
-
-		// Strategic value of this border
-		stratScore := scorePlacement(state, b.ID, playerID)
-
-		// How much do we need to reinforce? Consider both threat and strategic value
-		deficit := enemyThreat - float64(b.Troops)
-
-		// Overall fortify score: high if threatened AND strategically important
-		score := stratScore
-		if deficit > 0 {
-			score += deficit * 5 // Weight troop deficit heavily
-		}
-		// Extra value for borders of continents we own
-		if ownsContinent(state, b.Continent, playerID) {
-			score += 30 + float64(models.ContinentBonuses[b.Continent])*5
-		}
-
-		targets = append(targets, fortifyTarget{b, score, deficit})
-	}
-
-	sort.Slice(targets, func(i, j int) bool {
-		return targets[i].score > targets[j].score
-	})
-
-	if len(targets) == 0 {
-		return
-	}
-
-	bestTarget := targets[0].territory
-
-	// Find the best source: interior territory or low-priority border with excess troops
-	owned := getOwnedTerritories(state, playerID)
-
-	type fortifySource struct {
-		territory models.Territory
-		score     float64 // higher = better source
-	}
-
-	var sources []fortifySource
-	for _, t := range owned {
-		if t.ID == bestTarget.ID || t.Troops <= 1 {
-			continue
-		}
-
-		// Check connectivity
-		if !isConnected(state, t.ID, bestTarget.ID, playerID) {
-			continue
-		}
-
-		isInterior := true
-		localThreat := 0.0
-		for _, nID := range t.Neighbors {
-			if n, ok := state.Territories[nID]; ok && n.Owner != playerID && n.Owner != "" {
-				isInterior = false
-				localThreat += float64(n.Troops)
-			}
-		}
-
-		excess := float64(t.Troops - 1)
-		sourceScore := excess
-
-		if isInterior {
-			// Interior territories are ideal sources — all their troops are wasted
-			sourceScore += 100
-		} else {
-			// Border territory: only move troops if we have clear excess over local threat
-			safeExcess := float64(t.Troops) - localThreat*1.2
-			if safeExcess <= 0 {
-				continue // Don't weaken a threatened border
-			}
-			sourceScore += safeExcess
-		}
-
-		sources = append(sources, fortifySource{t, sourceScore})
-	}
-
-	sort.Slice(sources, func(i, j int) bool {
-		return sources[i].score > sources[j].score
-	})
-
-	if len(sources) == 0 {
-		return
-	}
-
-	bestSource := sources[0].territory
-
-	// Determine how many troops to move
-	moveTroops := bestSource.Troops - 1
-
-	// If source is a border territory, only move the safe excess
-	isSourceInterior := true
-	sourceThreat := 0.0
-	for _, nID := range bestSource.Neighbors {
-		if n, ok := state.Territories[nID]; ok && n.Owner != playerID && n.Owner != "" {
-			isSourceInterior = false
-			sourceThreat += float64(n.Troops)
-		}
-	}
-	if !isSourceInterior {
-		// Keep enough to maintain at least 1:1 with threat
-		keep := int(sourceThreat)
-		if keep < 1 {
-			keep = 1
-		}
-		moveTroops = bestSource.Troops - keep
-		if moveTroops < 1 {
+	for move := 0; move < maxMoves; move++ {
+		borders := getBorderTerritories(state, playerID)
+		if len(borders) == 0 {
 			return
 		}
+
+		// Score all border territories by strategic importance and need
+		type fortifyTargetT struct {
+			territory models.Territory
+			score     float64
+		}
+
+		var targets []fortifyTargetT
+		for _, b := range borders {
+			enemyThreat := 0.0
+			for _, nID := range b.Neighbors {
+				if n, ok := state.Territories[nID]; ok && n.Owner != playerID && n.Owner != "" {
+					enemyThreat += float64(n.Troops)
+				}
+			}
+
+			stratScore := scorePlacement(state, b.ID, playerID)
+			deficit := enemyThreat - float64(b.Troops)
+			score := stratScore
+			if deficit > 0 {
+				score += deficit * 5
+			}
+			if ownsContinent(state, b.Continent, playerID) {
+				score += 30 + float64(models.ContinentBonuses[b.Continent])*5
+			}
+
+			targets = append(targets, fortifyTargetT{b, score})
+		}
+
+		sort.Slice(targets, func(i, j int) bool {
+			return targets[i].score > targets[j].score
+		})
+
+		if len(targets) == 0 {
+			return
+		}
+
+		bestTarget := targets[0].territory
+
+		// Find the best source: interior territory or low-priority border with excess troops
+		owned := getOwnedTerritories(state, playerID)
+
+		type fortifySourceT struct {
+			territory models.Territory
+			score     float64
+		}
+
+		var sources []fortifySourceT
+		for _, t := range owned {
+			if t.ID == bestTarget.ID || t.Troops <= 1 {
+				continue
+			}
+
+			if !isConnected(state, t.ID, bestTarget.ID, playerID) {
+				continue
+			}
+
+			isInterior := true
+			localThreat := 0.0
+			for _, nID := range t.Neighbors {
+				if n, ok := state.Territories[nID]; ok && n.Owner != playerID && n.Owner != "" {
+					isInterior = false
+					localThreat += float64(n.Troops)
+				}
+			}
+
+			excess := float64(t.Troops - 1)
+			sourceScore := excess
+
+			if isInterior {
+				sourceScore += 100
+			} else {
+				safeExcess := float64(t.Troops) - localThreat*1.2
+				if safeExcess <= 0 {
+					continue
+				}
+				sourceScore += safeExcess
+			}
+
+			sources = append(sources, fortifySourceT{t, sourceScore})
+		}
+
+		sort.Slice(sources, func(i, j int) bool {
+			return sources[i].score > sources[j].score
+		})
+
+		if len(sources) == 0 {
+			return
+		}
+
+		bestSource := sources[0].territory
+
+		// Determine how many troops to move
+		moveTroops := bestSource.Troops - 1
+
+		isSourceInterior := true
+		sourceThreat := 0.0
+		for _, nID := range bestSource.Neighbors {
+			if n, ok := state.Territories[nID]; ok && n.Owner != playerID && n.Owner != "" {
+				isSourceInterior = false
+				sourceThreat += float64(n.Troops)
+			}
+		}
+		if !isSourceInterior {
+			keep := int(sourceThreat)
+			if keep < 1 {
+				keep = 1
+			}
+			moveTroops = bestSource.Troops - keep
+			if moveTroops < 1 {
+				if move == 0 {
+					// Try next best source on first move
+					continue
+				}
+				return
+			}
+		}
+
+		src := state.Territories[bestSource.ID]
+		dst := state.Territories[bestTarget.ID]
+		src.Troops -= moveTroops
+		dst.Troops += moveTroops
+		state.Territories[bestSource.ID] = src
+		state.Territories[bestTarget.ID] = dst
+
+		addLog(state, playerID, fmt.Sprintf(
+			"%s fortified %s with %d troops from %s",
+			name, dst.Name, moveTroops, src.Name,
+		))
 	}
-
-	src := state.Territories[bestSource.ID]
-	dst := state.Territories[bestTarget.ID]
-	src.Troops -= moveTroops
-	dst.Troops += moveTroops
-	state.Territories[bestSource.ID] = src
-	state.Territories[bestTarget.ID] = dst
-
-	addLog(state, playerID, fmt.Sprintf(
-		"%s fortified %s with %d troops from %s",
-		name, dst.Name, moveTroops, src.Name,
-	))
 }

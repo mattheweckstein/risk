@@ -271,6 +271,55 @@ export default function App() {
     [gameState, selectedTerritory, attackTarget, api, addToast, clearSelection],
   );
 
+  // Max Aggression: blitz then auto move max troops into conquered territory
+  const handleMaxAggression = useCallback(
+    async () => {
+      if (!gameState || !selectedTerritory || !attackTarget) return;
+      const from = selectedTerritory;
+      const to = attackTarget;
+      setAttackPending(true);
+      try {
+        let current = gameState;
+        while (true) {
+          const fromTerr = current.territories[from];
+          const toTerr = current.territories[to];
+          if (!fromTerr || !toTerr) break;
+          const maxDice = Math.min(3, (fromTerr.troops || 1) - 1);
+          if (maxDice < 1) break;
+          if (toTerr.owner === current.players.find((p) => !p.isAI)?.id) break;
+
+          const updated = await api.attack(current.id, from, to, maxDice);
+          current = updated;
+          setGameState(updated);
+
+          if (updated.lastAttackResult?.conquered) {
+            // Auto move max troops
+            if (updated.pendingConquest) {
+              const moved = await api.moveAfterConquest(updated.id, updated.pendingConquest.maxTroops);
+              current = moved;
+              setGameState(moved);
+            }
+            addToast(`Conquered ${updated.territories[to]?.name} with max troops!`, 'success');
+            setAttackTarget(null);
+            if ((current.territories[from]?.troops || 0) < 2) setSelectedTerritory(null);
+            break;
+          }
+          if (updated.phase === 'ended') {
+            const winner = updated.players.find((p) => p.id === updated.winner);
+            addToast(`${winner?.name} wins the game!`, 'success');
+            clearSelection();
+            break;
+          }
+        }
+      } catch (e) {
+        addToast(e instanceof Error ? e.message : 'Attack failed', 'warning');
+      } finally {
+        setAttackPending(false);
+      }
+    },
+    [gameState, selectedTerritory, attackTarget, api, addToast, clearSelection],
+  );
+
   // Move additional troops after conquest
   const handleConquestMove = useCallback(
     async (troops: number) => {
@@ -493,10 +542,12 @@ export default function App() {
       const updated = await api.surrender(gameState.id);
       setGameState(updated);
       setShowSurrenderConfirm(false);
+      setAiThinking(false);
+      clearSelection();
     } catch (e) {
       addToast(e instanceof Error ? e.message : 'Surrender failed', 'warning');
     }
-  }, [gameState, api, addToast]);
+  }, [gameState, api, addToast, clearSelection]);
 
   // Compute valid targets for visual feedback
   const validTargets: string[] = [];
@@ -516,9 +567,35 @@ export default function App() {
     }
 
     if (gameState.phase === 'fortify' && fortifySource && !fortifyTarget) {
-      for (const [tid, t] of Object.entries(gameState.territories)) {
-        if (t.owner === humanId && tid !== fortifySource) {
-          validTargets.push(tid);
+      if (gameState.freeFortify) {
+        // Free fortify: show all connected owned territories (BFS)
+        const visited = new Set<string>();
+        const queue = [fortifySource];
+        visited.add(fortifySource);
+        while (queue.length > 0) {
+          const current = queue.shift()!;
+          const t = gameState.territories[current];
+          if (!t) continue;
+          for (const nid of t.neighbors) {
+            if (visited.has(nid)) continue;
+            const neighbor = gameState.territories[nid];
+            if (neighbor && neighbor.owner === humanId) {
+              visited.add(nid);
+              queue.push(nid);
+              validTargets.push(nid);
+            }
+          }
+        }
+      } else {
+        // Classic: only adjacent owned territories
+        const source = gameState.territories[fortifySource];
+        if (source) {
+          for (const nid of source.neighbors) {
+            const neighbor = gameState.territories[nid];
+            if (neighbor && neighbor.owner === humanId) {
+              validTargets.push(nid);
+            }
+          }
         }
       }
     }
@@ -577,36 +654,45 @@ export default function App() {
       )}
 
       {/* Game over overlay */}
-      {gameState.phase === 'ended' && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60">
-          <div
-            className="text-center px-12 py-8 rounded-2xl shadow-2xl border"
-            style={{
-              background: 'linear-gradient(135deg, #16213e, #0f3460)',
-              borderColor: 'rgba(255, 215, 0, 0.4)',
-            }}
-          >
-            <div className="text-5xl font-bold text-yellow-400 mb-3">VICTORY</div>
-            <div className="text-xl text-gray-300 mb-6">
-              {gameState.players.find((p) => p.id === gameState.winner)?.name} has conquered the world!
-            </div>
-            <button
-              onClick={() => {
-                localStorage.removeItem(GAME_ID_KEY);
-                setGameState(null);
-                clearSelection();
-              }}
-              className="px-8 py-3 rounded-lg font-bold text-lg uppercase tracking-wider transition-all hover:scale-105"
+      {gameState.phase === 'ended' && (() => {
+        const humanPlayer = gameState.players.find((p) => !p.isAI);
+        const humanWon = humanPlayer?.id === gameState.winner;
+        const winnerName = gameState.players.find((p) => p.id === gameState.winner)?.name || 'Unknown';
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70">
+            <div
+              className="text-center px-12 py-8 rounded-2xl shadow-2xl border-2"
               style={{
-                background: 'linear-gradient(135deg, #e94560, #c23152)',
-                color: 'white',
+                background: 'linear-gradient(135deg, #16213e, #0f3460)',
+                borderColor: humanWon ? 'rgba(255, 215, 0, 0.6)' : 'rgba(233, 69, 96, 0.6)',
               }}
             >
-              New Game
-            </button>
+              <div className={`text-5xl font-bold mb-3 ${humanWon ? 'text-yellow-400' : 'text-red-400'}`}>
+                {humanWon ? 'VICTORY' : 'DEFEAT'}
+              </div>
+              <div className="text-xl text-gray-300 mb-6">
+                {humanWon
+                  ? `${winnerName} has conquered the world!`
+                  : `${winnerName} has conquered the world. Better luck next time!`}
+              </div>
+              <button
+                onClick={() => {
+                  localStorage.removeItem(GAME_ID_KEY);
+                  setGameState(null);
+                  clearSelection();
+                }}
+                className="px-8 py-3 rounded-lg font-bold text-lg uppercase tracking-wider transition-all hover:scale-105"
+                style={{
+                  background: 'linear-gradient(135deg, #e94560, #c23152)',
+                  color: 'white',
+                }}
+              >
+                New Game
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Main layout */}
       <div className="flex flex-1 min-h-0">
@@ -632,6 +718,7 @@ export default function App() {
               attackTarget={attackTarget}
               onAttack={handleAttackWithDice}
               onBlitz={handleBlitz}
+              onMaxAggression={handleMaxAggression}
               onDeployAll={handleDeployAll}
               lastPlacedTerritory={lastPlacedTerritory}
               onConquestMove={handleConquestMove}

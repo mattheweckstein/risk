@@ -479,8 +479,16 @@ func (e *GameEngine) Fortify(state *models.GameState, from, to string, troops in
 		return fmt.Errorf("must leave at least 1 troop in %s", from)
 	}
 
-	if !IsConnected(state, from, to, state.CurrentPlayer) {
-		return fmt.Errorf("%s and %s are not connected through your territories", from, to)
+	if state.FreeFortify {
+		// Free fortify: allow movement between any connected owned territories
+		if !IsConnected(state, from, to, state.CurrentPlayer) {
+			return fmt.Errorf("%s and %s are not connected through your territories", from, to)
+		}
+	} else {
+		// Classic: only allow movement between adjacent territories
+		if !isAdjacent(fromT, to) {
+			return fmt.Errorf("%s and %s are not adjacent", from, to)
+		}
 	}
 
 	fromT.Troops -= troops

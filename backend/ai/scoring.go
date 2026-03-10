@@ -243,9 +243,14 @@ doneStaging:
 	// --- Threat response ---
 	// Territories facing large enemy forces need reinforcement
 	totalEnemyThreat := 0.0
+	bordersLeader := false
+	leaderID := getLeaderID(state)
 	for _, nID := range t.Neighbors {
 		if n, ok := state.Territories[nID]; ok && n.Owner != playerID && n.Owner != "" {
 			totalEnemyThreat += float64(n.Troops)
+			if n.Owner == leaderID && leaderID != playerID {
+				bordersLeader = true
+			}
 		}
 	}
 	if totalEnemyThreat > 0 {
@@ -254,6 +259,12 @@ doneStaging:
 		if threatRatio > 1.5 {
 			score += threatRatio * 5
 		}
+	}
+
+	// --- Leader targeting ---
+	// Prioritize placing troops on borders with the leading player
+	if bordersLeader {
+		score += 15
 	}
 
 	return score
@@ -321,4 +332,86 @@ func countPlayerCards(state *models.GameState, playerID string) int {
 		}
 	}
 	return 0
+}
+
+// getLeaderID returns the player who owns the most territories.
+// In case of tie, prefers the human player (they're the real threat).
+func getLeaderID(state *models.GameState) string {
+	bestID := ""
+	bestCount := 0
+	isHuman := false
+	for _, p := range state.Players {
+		if !p.IsAlive {
+			continue
+		}
+		count := countPlayerTerritories(state, p.ID)
+		if count > bestCount || (count == bestCount && !p.IsAI && !isHuman) {
+			bestCount = count
+			bestID = p.ID
+			isHuman = !p.IsAI
+		}
+	}
+	return bestID
+}
+
+// getPlayerStrength returns a rough measure of a player's power:
+// territory count + continent bonuses + cards held.
+func getPlayerStrength(state *models.GameState, playerID string) float64 {
+	terrs := countPlayerTerritories(state, playerID)
+	strength := float64(terrs)
+
+	// Add continent bonus value
+	for continent, bonus := range models.ContinentBonuses {
+		if ownsContinent(state, continent, playerID) {
+			strength += float64(bonus) * 3
+		}
+	}
+
+	// Cards are potential future troops
+	cards := countPlayerCards(state, playerID)
+	strength += float64(cards) * 2
+
+	// Total troop count matters
+	totalTroops := 0
+	for _, t := range state.Territories {
+		if t.Owner == playerID {
+			totalTroops += t.Troops
+		}
+	}
+	strength += float64(totalTroops) * 0.3
+
+	return strength
+}
+
+// isLeader returns true if the given player is the strongest player in the game.
+func isLeader(state *models.GameState, playerID string) bool {
+	return getLeaderID(state) == playerID
+}
+
+// leaderThreatBonus returns extra attack score when targeting the game leader.
+func leaderThreatBonus(state *models.GameState, defenderID, attackerID string) float64 {
+	if defenderID == "" {
+		return 0
+	}
+
+	leaderID := getLeaderID(state)
+	if defenderID != leaderID {
+		return 0
+	}
+
+	// The bigger the lead, the more important to attack them
+	leaderStrength := getPlayerStrength(state, leaderID)
+	myStrength := getPlayerStrength(state, attackerID)
+
+	if leaderStrength <= myStrength {
+		return 0
+	}
+
+	gap := leaderStrength - myStrength
+	// Scale bonus with the gap: bigger lead = more urgency
+	bonus := 15 + gap*0.5
+	if bonus > 50 {
+		bonus = 50
+	}
+	return bonus
 }

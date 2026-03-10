@@ -202,6 +202,7 @@ func TestAITradesCards(t *testing.T) {
 				{Territory: "brazil", Type: "cavalry"},
 				{Territory: "china", Type: "artillery"},
 				{Territory: "india", Type: "infantry"},
+				{Territory: "japan", Type: "cavalry"},
 			}
 		}
 	}
@@ -219,7 +220,7 @@ func TestAITradesCards(t *testing.T) {
 		}
 	}
 
-	if aiCards >= 4 {
+	if aiCards >= 5 {
 		t.Errorf("expected AI to have traded cards, still has %d", aiCards)
 	}
 }
